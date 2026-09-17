@@ -1,7 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- CỐ Ý KHÔNG khai android.permission.INTERNET -->
-    <!-- Mô hình 3D không được rời khỏi máy — đúng như README mô tả -->
+   xml
+    <!-- CẦN quyền INTERNET dù chỉ chạy máy chủ nội bộ trên 127.0.0.1:
+         Android chặn MỌI lệnh tạo socket() ở tầng hệ điều hành nếu thiếu
+         quyền này, kể cả socket chỉ nghe trên loopback, không hề liên quan
+         gì đến việc có gửi dữ liệu ra Internet thật hay không.
+         Việc dữ liệu KHÔNG rời khỏi máy được đảm bảo bằng
+         network_security_config.xml bên dưới — nó chặn cleartext tới mọi
+         domain TRỪ 127.0.0.1, nên quyền này không mở đường ra ngoài. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
 
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
