@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Chỉ cho phép http:// (không mã hoá) tới đúng loopback 127.0.0.1 —
+         nơi máy chủ nội bộ của app đang chạy. Mọi domain khác vẫn bắt buộc HTTPS. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+    </domain-config>
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>

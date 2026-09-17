@@ -1,0 +1,30 @@
+name: be_3d_site_viewer
+description: Xem mô hình 3D Revit (.glb) hoàn toàn offline ngoài công trường.
+publish_to: 'none'
+version: 3.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Hiển thị trang HTML đã qua 361 ca test. Bản 4.10 trở lên có
+  # WebViewController(onPermissionRequest:) — cần cho việc quét mã QR bằng camera.
+  webview_flutter: ^4.10.0
+
+  # Chọn file .glb bằng trình chọn file của Android.
+  # CHÚ Ý: từ bản 11.0.0 API đổi từ FilePicker.platform.pickFiles()
+  # sang FilePicker.pickFiles() (hàm static). Code trong lib/main.dart viết
+  # theo bản 11. Nếu máy bạn dùng Flutter cũ và pub báo không giải được, xem
+  # mục "Nếu pub get báo lỗi" trong README.md.
+  file_picker: ^11.0.0
+
+  # Tìm thư mục ghi ghi chú và file xuất.
+  path_provider: ^2.1.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/www/

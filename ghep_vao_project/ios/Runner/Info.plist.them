@@ -1,0 +1,32 @@
+<!--
+  CÁC KHOÁ CẦN THÊM VÀO ios/Runner/Info.plist (nếu sau này build cho iPhone).
+  Script chuan_bi KHÔNG tự chèn — file Info.plist do Xcode quản lý, chèn máy
+  móc dễ làm hỏng. Mở file bằng trình soạn thảo và thêm vào trong thẻ <dict>.
+
+  Bản v3 này mới chỉ được nhắm cho Android. iOS chưa thử lần nào.
+-->
+
+<key>NSCameraUsageDescription</key>
+<string>Dùng camera để quét mã QR làm mốc toạ độ công trình. Ảnh không được lưu và không gửi đi đâu.</string>
+
+<key>io.flutter.embedded_views_preview</key>
+<true/>
+
+<!--
+  App chạy offline nên không cần ngoại lệ mạng nào cho Internet.
+  Nhưng WebView nạp trang từ http://127.0.0.1 nên phải cho phép HTTP với
+  đúng địa chỉ nội bộ đó — giống hệt lý do bên Android.
+-->
+<key>NSAppTransportSecurity</key>
+<dict>
+    <key>NSAllowsLocalNetworking</key>
+    <true/>
+    <key>NSExceptionDomains</key>
+    <dict>
+        <key>127.0.0.1</key>
+        <dict>
+            <key>NSExceptionAllowsInsecureHTTPLoads</key>
+            <true/>
+        </dict>
+    </dict>
+</dict>

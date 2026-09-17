@@ -1,0 +1,89 @@
+// __GOI__
+//
+// File này được script chuan_bi tự chép vào đúng thư mục và tự điền dòng
+// "package ..." cho khớp với project mà `flutter create` sinh ra.
+//
+// ---------------------------------------------------------------------------
+// VÌ SAO PHẢI CÓ FILE NÀY
+// ---------------------------------------------------------------------------
+// Quét mã QR trong WebView dùng getUserMedia(). Nó chỉ chạy khi CẢ HAI điều
+// kiện được thoả:
+//   1. WebView được cho phép (Dart lo, trong onPermissionRequest);
+//   2. Bản thân APP đang GIỮ quyền CAMERA của hệ điều hành.
+// Điều 2 phải xin lúc chạy trên Android 6 trở lên. Có thể dùng plugin
+// permission_handler, nhưng chỉ vì một quyền duy nhất mà thêm một phụ thuộc
+// nữa thì không đáng — nhất là khi mỗi phụ thuộc là một chỗ có thể lệch
+// phiên bản. Đoạn dưới chỉ dùng API sẵn có của Android, không thêm thư viện.
+//
+// Xin quyền ĐÚNG LÚC CẦN (khi người dùng bấm quét QR) chứ không xin ngay khi
+// mở app: hỏi quyền camera lúc vừa mở một app xem mô hình trông rất vô duyên,
+// và người dùng hay bấm Từ chối theo phản xạ — từ chối rồi thì mất luôn tính
+// năng quét mốc.
+// ---------------------------------------------------------------------------
+
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
+
+class MainActivity : FlutterActivity() {
+
+    companion object {
+        private const val KENH = "be3d/quyen"
+        private const val MA_YEU_CAU = 4301
+    }
+
+    private var ketQuaDangCho: MethodChannel.Result? = null
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, KENH)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "coCamera" -> result.success(dangCoQuyenCamera())
+                    "xinCamera" -> xinQuyenCamera(result)
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    private fun dangCoQuyenCamera(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true
+        return checkSelfPermission(Manifest.permission.CAMERA) ==
+            PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun xinQuyenCamera(result: MethodChannel.Result) {
+        if (dangCoQuyenCamera()) {
+            result.success(true)
+            return
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            result.success(false)
+            return
+        }
+        // Nếu đang có một yêu cầu chưa xong thì trả lời cái cũ trước, không để
+        // nó treo mãi bên Dart.
+        ketQuaDangCho?.success(false)
+        ketQuaDangCho = result
+        requestPermissions(arrayOf(Manifest.permission.CAMERA), MA_YEU_CAU)
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        // Gọi super trước: FlutterActivity còn phải chuyển kết quả này cho các
+        // plugin khác. Bỏ qua là làm hỏng plugin khác một cách rất khó tìm.
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == MA_YEU_CAU) {
+            val duoc = grantResults.isNotEmpty() &&
+                grantResults[0] == PackageManager.PERMISSION_GRANTED
+            ketQuaDangCho?.success(duoc)
+            ketQuaDangCho = null
+        }
+    }
+}

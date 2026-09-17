@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BE 3D Site Viewer — Rà soát quy trình</title>
+<style>
+  :root{--ink:#1b1f24;--mut:#66707c;--line:#e1e6ec;--ok:#188038;--part:#e37400;--no:#c5221f;--blue:#1a73e8}
+  *{box-sizing:border-box}
+  body{margin:0;background:#f5f7fa;color:var(--ink);
+       font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+  .wrap{max-width:940px;margin:0 auto;padding:34px 22px 70px}
+  h1{font-size:26px;margin:0 0 6px}
+  .sub{color:var(--mut);margin:0 0 26px}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:26px;font-size:13px}
+  .b{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap}
+  .b.ok{background:#e6f4ea;color:var(--ok)} .b.part{background:#fef4e5;color:var(--part)}
+  .b.no{background:#fdecea;color:var(--no)} .b.block{background:#37474f;color:#fff}
+  .step{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin-bottom:16px}
+  .step h2{font-size:17px;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+  .num{width:28px;height:28px;border-radius:50%;background:var(--blue);color:#fff;display:flex;
+       align-items:center;justify-content:center;font-size:14px;flex:0 0 auto}
+  .step>p.d{color:var(--mut);font-size:13.5px;margin:0 0 14px 38px}
+  table{width:100%;border-collapse:collapse;margin-left:0}
+  td{padding:9px 0;border-top:1px solid var(--line);vertical-align:top;font-size:14px}
+  td.s{width:112px} td.n{color:var(--mut);font-size:13px;padding-left:14px}
+  .fork{background:#fff;border:2px solid var(--blue);border-radius:16px;padding:22px;margin-top:28px}
+  .fork h2{margin:0 0 8px;font-size:19px;color:var(--blue)}
+  .opts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+  @media(max-width:760px){.opts{grid-template-columns:1fr}}
+  .opt{border:1px solid var(--line);border-radius:12px;padding:16px;background:#fafbfc}
+  .opt h3{margin:0 0 8px;font-size:15px}
+  .opt ul{margin:8px 0 0;padding-left:18px;font-size:13.5px} .opt li{margin-bottom:5px}
+  .warn{background:#fff8e6;border:1px solid #f3d08a;border-radius:12px;padding:16px;margin:22px 0}
+  .warn b{color:#8a5a00}
+  code{background:#eef1f4;padding:1px 6px;border-radius:4px;font-size:12.5px}
+</style>
+</head>
+<body><div class="wrap">
+
+<h1>Rà soát quy trình BE 3D Site Viewer</h1>
+<p class="sub">Trạng thái thật của từng mắt xích, tính đến bản mô phỏng mới nhất — <b>đã hoàn thiện hướng A</b>.</p>
+
+<div class="legend">
+  <span><span class="b ok">XONG</span> đã chạy và có test</span>
+  <span><span class="b part">MỘT PHẦN</span> chạy được nhưng còn thiếu</span>
+  <span><span class="b no">CHƯA LÀM</span> làm được, chưa bắt tay</span>
+  <span><span class="b block">CHẶN</span> kiến trúc hiện tại không cho phép</span>
+</div>
+
+<div class="step">
+  <h2><span class="num">1</span> Tải .glb từ Revit, import vào app</h2>
+  <p class="d">Offline hoàn toàn sau khi đã có file trên máy.</p>
+  <table>
+    <tr><td class="s"><span class="b ok">XONG</span></td><td>Chọn file từ bộ nhớ máy</td>
+        <td class="n">Đã bỏ lọc đuôi file kiểu <code>FileType.custom</code> vì Android trả danh sách trống</td></tr>
+    <tr><td class="s"><span class="b ok">XONG</span></td><td>Kiểm tra file trước khi render</td>
+        <td class="n">Bắt Draco/KTX2/Meshopt, file cắt ngắn, không có mesh, sai định dạng</td></tr>
+    <tr><td class="s"><span class="b ok">XONG</span></td><td>Hiển thị 3D, xoay/zoom</td>
+        <td class="n">Đã chạy thật với file 18.4 MB của bạn</td></tr>
+  </table>
+</div>
+
+<div class="step">
+  <h2><span class="num">2</span> Mốc QR: tạo → dán thực địa → quét → nhảy tới → vào chế độ đi bộ</h2>
+  <p class="d">Chuỗi đã liền mạch từ đầu tới cuối.</p>
+  <table>
+    <tr><td class="s"><span class="b ok">XONG</span></td><td>Tạo nội dung mốc từ góc nhìn hiện tại</td>
+        <td class="n">Bản 2 mang thêm góc bắc; 24 ca test cho vòng mã hoá / giải mã, vẫn đọc được mốc bản 1 cũ</td></tr>
+    <tr><td class="s"><span class="b ok">XONG</span></td><td>Vẽ ảnh QR để in</td>
+        <td class="n">Dùng thư viện chuẩn; bản mô phỏng cần mạng, app thật đóng gói sẵn</td></tr>
+    <tr><td class="s"><span class="b ok">XONG</span></td><td><b>Quét QR bằng camera</b></td>
+        <td class="n">Dùng BarcodeDetector có sẵn trong Chrome/WebView Android — không cần thư viện, chạy offline. Máy không có thì báo rõ và vẫn cho dán tay</td></tr>
+    <tr><td class="s"><span class="b ok">XONG</span></td><td>Nhảy camera về đúng mốc</td>
+        <td class="n">Có kiểm tra mốc thuộc đúng file đang mở</td></tr>
+    <tr><td class="s"><span class="b ok">XONG</span></td><td>Quét xong tự vào chế độ đi bộ</td>
+        <td class="n">Giữ nguyên cả hướng nhìn đã lưu trong mốc, không quay về hướng 0</td></tr>
+  </table>
+</div>
+
+<div class="step">
+  <h2><span class="num">3</span> Mô hình xoay và di chuyển theo thiết bị</h2>
+  <p class="d">Đã chốt <b>mức 3 (ARCore/ARKit)</b>. Phần toán đã xong; phần gọi ARCore còn phải viết.</p>
+  <table>
+    <tr><td class="s"><span class="b ok">XONG</span></td><td><b>Xoay theo hướng thiết bị</b></td>
+        <td class="n">Mốc QR bản 2 mang thêm góc bắc; đọc được cả hướng kiểu Android lẫn iOS. Nay chỉ còn là <b>phương án dự phòng</b> — la bàn trong công trình cốt thép không tin được</td></tr>
+    <tr><td class="s"><span class="b ok">XONG</span></td><td><b>Toán căn mô hình vào thực địa</b></td>
+        <td class="n">Khớp tỷ lệ + hướng + vị trí từ 3 mốc, công thức đóng, <b>56 ca test</b> theo lối dựng ngược. Đây là phần khó sai nhất của mức 3, và nó đã đúng</td></tr>
+    <tr><td class="s"><span class="b ok">XONG</span></td><td><b>Đo tỷ lệ và trục của file</b></td>
+        <td class="n">Đi hết cây node để đo hộp bao thật; đoán đơn vị và trục cao, và <b>nói rõ khi không đoán nổi</b>. 100 ca test</td></tr>
+    <tr><td class="s"><span class="b part">MỘT PHẦN</span></td><td><b>Di chuyển theo bước chân</b></td>
+        <td class="n">Cần plugin ARCore tự viết bằng Kotlin — không plugin Flutter nào đang bảo trì mở ra được Augmented Images. Xem tài liệu <b>“Mức 3 — thiết kế”</b></td></tr>
+  </table>
+</div>
+
+<div class="warn">
+  <b>Vì sao "di chuyển theo thiết bị" phải cần tới AR:</b> trong nhà không bắt được GPS, nên điện thoại
+  không có cách nào biết bạn đã đi bao xa. Lấy cảm biến gia tốc rồi tích phân hai lần thì sai số dồn cực
+  nhanh — vài giây là lệch hàng mét. (<b>Đính chính một câu tôi từng nói quá:</b> điều đó chỉ đúng với
+  việc tích phân gia tốc. <b>Đếm bước chân</b> thì khả thi hơn nhiều vì sai số có biên; đó chính là
+  mức 2 trong ba mức phương án.)<br><br>
+  <b>Đã chốt mức 3 — ARCore/ARKit.</b> Chúng ghép camera với cảm biến quán tính nên bám được vị trí
+  thật. Điều cần sửa lại trong bản trước của trang này: <i>không phải</i> vì nút AR của model-viewer bàn
+  giao sang Scene Viewer mà cả hướng này bị chặn. Ta không dùng nút đó. Ta chạy <b>một phiên ARCore
+  riêng chỉ để định vị</b>, rồi đẩy vị trí đó vào camera của model-viewer. Việc phải làm là tự viết
+  plugin Kotlin, vì không plugin Flutter nào đang bảo trì mở ra được Augmented Images —
+  <b>đã kiểm và xác nhận</b>.
+</div>
+
+<div class="step">
+  <h2><span class="num">4</span> Bật/tắt ẩn hiện cấu kiện</h2>
+  <table>
+    <tr><td class="s"><span class="b ok">XONG</span></td><td>Ẩn/hiện theo nhóm vật liệu</td>
+        <td class="n">Ngắm tâm màn hình rồi chọn; có "chỉ hiện riêng nhóm này"</td></tr>
+    <tr><td class="s"><span class="b block">CHẶN</span></td><td>Ẩn <b>đúng một</b> cấu kiện đang chỉ vào</td>
+        <td class="n">model-viewer chỉ can thiệp được ở mức vật liệu, không cho ẩn từng node</td></tr>
+    <tr><td class="s"><span class="b block">CHẶN</span></td><td>Lọc theo Category / Workset / Family</td>
+        <td class="n">File của bạn chỉ có <code>uniqueId</code>, <code>elementId</code>, <code>gridParameters</code> — không có tên nhóm</td></tr>
+  </table>
+</div>
+
+<div class="step">
+  <h2><span class="num">+</span> Ngoài quy trình bạn nêu, đã có sẵn</h2>
+  <table>
+    <tr><td class="s"><span class="b ok">XONG</span></td><td>Ghi chú vấn đề gắn vào toạ độ 3D</td>
+        <td class="n">Mức độ cao/vừa/thấp, bay tới, xuất JSON và CSV mở bằng Excel</td></tr>
+    <tr><td class="s"><span class="b ok">XONG</span></td><td>Chế độ đi bộ + tâm ngắm</td>
+        <td class="n">Toán camera kiểm chứng qua 90 tổ hợp, sai lệch 1.8×10⁻¹⁵ m</td></tr>
+    <tr><td class="s"><span class="b part">MỘT PHẦN</span></td><td>AR đặt mô hình vào không gian thật</td>
+        <td class="n">Android có sẵn qua Scene Viewer, nhưng không gắn được mốc QR. iOS cần thêm file .usdz</td></tr>
+  </table>
+</div>
+
+<div class="fork">
+  <h2>Đã chốt: mức 3, và điểm rẽ cũ là một ngã ba GIẢ</h2>
+  <p style="margin:0 0 12px">Bảng này trước đây trình bày như phải chọn giữa <i>giữ model-viewer</i>
+     và <i>đổi sang three.js</i>. Xem lại thì <b>không phải một lựa chọn</b>. ARCore chỉ cần đẩy ra
+     <b>vị trí và hướng camera</b>, mà model-viewer nhận được qua <code>cameraTarget</code> /
+     <code>cameraOrbit</code> — đã chứng minh bằng số ở bộ test đi bộ. Nên:</p>
+  <div class="opts">
+    <div class="opt">
+      <h3>Di chuyển theo thiết bị (mức 3)</h3>
+      <p style="font-size:13.5px;margin:0">KHÔNG bắt buộc bỏ model-viewer. Giữ được toàn bộ
+         <b>361 ca test</b> đã có. Việc phải làm là một plugin Kotlin đẩy pose ARCore sang.</p>
+    </div>
+    <div class="opt">
+      <h3>Ẩn/hiện từng cấu kiện</h3>
+      <p style="font-size:13.5px;margin:0">Đây mới là thứ cần bỏ model-viewer. Là một nhu cầu
+         <b>riêng</b>, quyết định sau, không dính gì tới mức 3.</p>
+    </div>
+  </div>
+  <p style="margin:12px 0 0;font-size:13.5px"><b>Ba điều mới phát hiện, có dẫn nguồn tài liệu Google:</b>
+     (1) <b>không được dùng mã QR làm ảnh mốc cho ARCore</b> — Google nói rõ mã QR cho kết quả kém, nên
+     tờ mốc phải in thêm hoa văn riêng; (2) ảnh mốc phải chiếm <b>≥25% khung hình</b> mới nhận được, tức
+     là phải đi lại gần; (3) <b>bắt buộc 3 mốc</b> chứ không phải 1 — với 2 mốc thì in sai tỷ lệ 5% mà
+     app vẫn báo sai số bằng 0, còn 3 mốc thì bắt được ngay. Chi tiết trong tài liệu
+     <b>“Mức 3 — thiết kế tính tới mọi trường hợp”</b>.</p>
+</div>
+</body></html>

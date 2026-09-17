@@ -1,0 +1,2550 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BE 3D Site Viewer — Bản mô phỏng</title>
+<style>
+  :root{
+    --bg:#f4f6f9; --ink:#1b1f24; --muted:#6b7480; --line:#dde2e8;
+    --blue:#1a73e8; --blue-d:#1557b0; --green:#188038; --red:#c5221f; --amber:#e37400;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+  .wrap{max-width:1120px;margin:0 auto;padding:28px 20px 60px;
+        display:grid;grid-template-columns:400px 1fr;gap:32px;align-items:start}
+  @media(max-width:900px){.wrap{grid-template-columns:1fr}}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:var(--muted);margin:0 0 22px;font-size:14px}
+
+  /* ---------- khung điện thoại ---------- */
+  .phone{width:380px;height:760px;background:#000;border-radius:38px;padding:11px;
+         box-shadow:0 18px 50px rgba(0,0,0,.28);position:sticky;top:24px}
+  .screen{width:100%;height:100%;background:#fff;border-radius:28px;overflow:hidden;
+          display:flex;flex-direction:column;position:relative}
+  .appbar{background:var(--blue);color:#fff;padding:14px 14px;display:flex;align-items:center;gap:10px;
+          font-weight:600;font-size:16px;flex:0 0 auto}
+  .appbar .t{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .appbar button{background:transparent;border:0;color:#fff;font-size:19px;cursor:pointer;padding:2px 6px;border-radius:8px}
+  .appbar button:hover{background:rgba(255,255,255,.18)}
+  .body{flex:1;overflow:auto;padding:18px}
+
+  .hero{text-align:center;padding:14px 4px 4px}
+  .hero .ic{font-size:52px;line-height:1}
+  .hero h2{font-size:19px;margin:10px 0 4px}
+  .hero p{color:var(--muted);font-size:13px;margin:0}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;cursor:pointer;
+       background:var(--blue);color:#fff;padding:12px 20px;border-radius:24px;font-size:14px;font-weight:600;
+       font-family:inherit}
+  .btn:hover{background:var(--blue-d)}
+  .btn.ghost{background:#fff;color:var(--blue);border:1.5px solid var(--blue)}
+  .btn.block{width:100%}
+  .btn[disabled]{opacity:.55;cursor:default}
+  .center{text-align:center;margin:18px 0}
+
+  .drop{border:2px dashed var(--line);border-radius:14px;padding:16px;text-align:center;color:var(--muted);
+        font-size:12.5px;margin-top:14px}
+  .drop.on{border-color:var(--blue);background:#eaf1fd;color:var(--blue)}
+
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:15px;margin-top:16px;
+        box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  .card h3{margin:0;font-size:15.5px;display:flex;align-items:center;gap:8px}
+  .fname{color:var(--muted);font-size:12px;margin:5px 0 0}
+  .msg{border-radius:9px;padding:11px 12px;margin-top:12px;font-size:13px}
+  .msg .h{font-weight:700;font-size:12.5px;display:flex;align-items:center;gap:6px;margin-bottom:6px}
+  .msg ul{margin:0;padding-left:17px} .msg li{margin-bottom:6px}
+  .msg.err{background:#fdecea;border:1px solid #f5b7b4;color:#5f1512} .msg.err .h{color:var(--red)}
+  .msg.warn{background:#fef6e7;border:1px solid #f6d9a4;color:#5c3d05} .msg.warn .h{color:var(--amber)}
+  .msg.arn{background:#eef4fd;border:1px solid #b9cef0;color:#14335e} .msg.arn .h{color:#1d4fa0}
+  details{margin-top:12px} summary{cursor:pointer;font-size:13.5px;font-weight:600;outline:none}
+  table.kv{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}
+  table.kv td{padding:3px 0;vertical-align:top}
+  table.kv td:first-child{color:var(--muted);width:52%}
+
+  .tips{background:#f5f7fa;border:1px solid var(--line);border-radius:14px;padding:15px;margin-top:20px;font-size:12.5px;line-height:1.65}
+  .tips b{display:block;margin-bottom:6px;font-size:13.5px}
+
+  .recent{margin-top:22px}
+  .recent h4{margin:0 0 8px;font-size:13.5px}
+  .rowitem{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);
+           border-radius:11px;padding:10px 12px;margin-bottom:7px;cursor:pointer;font-size:13px}
+  .rowitem:hover{background:#f7f9fc}
+  .rowitem .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rowitem .sz{color:var(--muted);font-size:11.5px}
+
+  /* ---------- màn hình xem 3D ---------- */
+  .viewer{flex:1;min-height:0;background:#e8eaed;display:flex;flex-direction:column;position:relative}
+  .viewer .stage{flex:1;position:relative;overflow:hidden}
+  model-viewer{width:100%;height:100%;background:#e8eaed;--poster-color:transparent}
+  /* the chua duoc dinh nghia (CDN chua tai xong) van phai chiem cho, khong sup ve 0 */
+  model-viewer:not(:defined){display:block}
+  .infobar{position:absolute;left:12px;right:12px;bottom:12px;background:#fff;border-radius:12px;
+           padding:11px 12px;display:flex;gap:10px;align-items:center;box-shadow:0 3px 12px rgba(0,0,0,.16);font-size:12.5px}
+  .infobar .nm{font-weight:700;font-size:13.5px}
+  .infobar .mt{color:var(--muted);font-size:11.5px}
+  .hintbox{position:absolute;left:12px;right:12px;top:12px;background:rgba(0,0,0,.78);color:#fff;
+           border-radius:11px;padding:11px 12px;font-size:12px;line-height:1.5}
+  .fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:26px;
+            text-align:center;color:#5f6368;font-size:13px;line-height:1.6;background:#e8eaed}
+  .fallback>div{max-width:290px}
+
+
+  /* ---------- ghi chú / đánh dấu vấn đề ---------- */
+  .fab{position:absolute;right:12px;bottom:78px;display:flex;flex-direction:column;gap:8px;align-items:flex-end;z-index:5}
+  .fab button{border:0;cursor:pointer;border-radius:22px;padding:10px 15px;font-size:12.5px;font-weight:600;
+              font-family:inherit;box-shadow:0 3px 10px rgba(0,0,0,.22);background:#fff;color:#1b1f24}
+  .fab button.on{background:var(--red);color:#fff}
+  .fab button.primary{background:var(--blue);color:#fff}
+  .marktip{position:absolute;left:12px;right:12px;top:12px;background:var(--red);color:#fff;border-radius:11px;
+           padding:10px 12px;font-size:12px;z-index:5;line-height:1.45}
+  .hotspot{--c:var(--red);width:24px;height:24px;border-radius:50%;border:2px solid #fff;background:var(--c);
+           color:#fff;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;
+           justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.4);padding:0}
+  .hotspot.cao{--c:#c5221f} .hotspot.vua{--c:#e37400} .hotspot.thap{--c:#1a73e8}
+  .sheet{position:absolute;inset:0;background:rgba(0,0,0,.45);z-index:9;display:flex;align-items:flex-end}
+  .sheet .inner{background:#fff;width:100%;max-height:82%;border-radius:18px 18px 0 0;padding:16px;overflow:auto}
+  .sheet h4{margin:0 0 10px;font-size:15px;display:flex;align-items:center}
+  .note{border:1px solid var(--line);border-radius:11px;padding:10px 12px;margin-bottom:8px;font-size:13px}
+  .note .top{display:flex;gap:8px;align-items:center;margin-bottom:4px}
+  .pill{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:12px;color:#fff}
+  .pill.cao{background:#c5221f} .pill.vua{background:#e37400} .pill.thap{background:#1a73e8}
+  .note .act{margin-left:auto;display:flex;gap:6px}
+  .note .act button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 9px;
+                    font-size:11.5px;cursor:pointer;font-family:inherit}
+  .note .meta{color:var(--muted);font-size:11px;margin-top:4px}
+  .sevpick{display:flex;gap:8px;margin:10px 0}
+  .sevpick label{flex:1;text-align:center;border:1.5px solid var(--line);border-radius:10px;padding:8px;
+                 font-size:12px;cursor:pointer}
+  .sevpick input{display:none}
+  .sevpick input:checked+span{font-weight:700}
+  .sevpick label:has(input:checked){border-color:var(--blue);background:#eaf1fd}
+  textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;font-family:inherit;
+           font-size:13px;resize:vertical;min-height:70px}
+
+
+  /* ---------- mốc QR + trạng thái AR ---------- */
+  .chip{position:absolute;left:12px;top:12px;background:rgba(0,0,0,.72);color:#fff;border-radius:20px;
+        padding:6px 12px;font-size:11.5px;z-index:4;display:flex;gap:6px;align-items:center}
+  .chip.ok{background:rgba(24,128,56,.9)}
+  .qrbox{text-align:center;padding:10px 0}
+  .qrbox canvas,.qrbox img{width:190px;height:190px;image-rendering:pixelated;border:8px solid #fff}
+  .payload{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;background:#f1f3f5;
+           border-radius:8px;padding:9px;word-break:break-all;margin-top:8px;line-height:1.5}
+  .infobar.hidden{display:none}
+
+
+  /* ---------- chế độ đi bộ + tâm ngắm ---------- */
+  /* hộp thật 44x44 chứ không phải khung 0x0 — dễ kiểm tra và chắc chắn hơn */
+  .cross{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;
+         z-index:6;pointer-events:none}
+  .cross i{position:absolute;background:#fff;box-shadow:0 0 2px rgba(0,0,0,.9)}
+  .cross i.h{width:22px;height:2px;left:11px;top:21px}
+  .cross i.v{width:2px;height:22px;left:21px;top:11px}
+  .cross b{position:absolute;width:7px;height:7px;border-radius:50%;border:2px solid #fff;
+           left:16px;top:16px;box-shadow:0 0 2px rgba(0,0,0,.9)}
+  .cross.hit i,.cross.hit b{background:#34a853;border-color:#34a853}
+  .pad{position:absolute;left:12px;bottom:74px;z-index:6;display:grid;grid-template-columns:repeat(3,42px);
+       grid-template-rows:repeat(3,42px);gap:5px}
+  .pad button{border:0;border-radius:11px;background:rgba(255,255,255,.93);font-size:15px;cursor:pointer;
+              box-shadow:0 2px 7px rgba(0,0,0,.25);font-family:inherit;padding:0}
+  .pad button:active{background:#1a73e8;color:#fff}
+  .pad .sp{visibility:hidden}
+  .walkbar{position:absolute;right:12px;bottom:74px;z-index:6;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+  .walkbar button{border:0;border-radius:20px;padding:9px 13px;font-size:12px;font-weight:600;cursor:pointer;
+                  background:rgba(255,255,255,.93);box-shadow:0 2px 7px rgba(0,0,0,.25);font-family:inherit}
+  .walkbar button.go{background:#1a73e8;color:#fff}
+  .hud{position:absolute;left:12px;top:12px;z-index:6;background:rgba(0,0,0,.7);color:#fff;border-radius:9px;
+       padding:7px 11px;font-size:11px;line-height:1.5;font-family:ui-monospace,Menlo,monospace}
+
+  .scanbox{position:relative;border-radius:12px;overflow:hidden;background:#000;margin-top:10px}
+  .scanbox video{width:100%;display:block;max-height:230px;object-fit:cover}
+  .scanbox .frame{position:absolute;inset:16% 18%;border:3px solid #34a853;border-radius:12px;
+                  box-shadow:0 0 0 2000px rgba(0,0,0,.35)}
+
+
+  /* ---------- MỞ TRỰC TIẾP TRÊN ĐIỆN THOẠI: bỏ khung, chạy full màn hình ---------- */
+  @media (max-width:760px){
+    body{background:#000}
+    .wrap{padding:0;max-width:none;display:block}
+    .wrap > div:first-child > h1, .wrap > div:first-child > p.sub{display:none}
+    .panel{display:none}
+    .phone{width:100%;height:100dvh;border-radius:0;padding:0;box-shadow:none;position:static}
+    .screen{border-radius:0}
+    .fab button, .walkbar button{padding:15px 18px;font-size:14px;min-height:46px}
+    .pad{grid-template-columns:repeat(3,54px);grid-template-rows:repeat(3,54px)}
+    .pad button{font-size:18px}
+    .sheet .inner{max-height:88%}
+  }
+  /* nút bấm đủ to cho ngón tay ngoài công trường */
+  @media (max-width:760px){ .btn{padding:14px 22px;font-size:15px} }
+
+  /* ---------- bảng giải thích bên phải ---------- */
+  .panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px}
+  .panel h2{font-size:17px;margin:0 0 12px}
+  .panel h3{font-size:14px;margin:22px 0 8px}
+  .panel p,.panel li{font-size:13.5px;color:#3c4149}
+  .panel ul{padding-left:18px;margin:6px 0}
+  .badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;margin-right:6px}
+  .badge.y{background:#e6f4ea;color:var(--green)} .badge.n{background:#fdecea;color:var(--red)}
+  .samples{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .samples button{font-size:12.5px;padding:8px 13px;border-radius:20px;border:1.5px solid var(--line);
+                  background:#fff;cursor:pointer;font-family:inherit}
+  .samples button:hover{border-color:var(--blue);color:var(--blue)}
+  code{background:#f1f3f5;padding:1px 5px;border-radius:4px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- =========================== ĐIỆN THOẠI =========================== -->
+  <div>
+    <h1>Bản mô phỏng ứng dụng</h1>
+    <p class="sub">Kéo file <code>.glb</code> thật của bạn vào màn hình bên dưới.</p>
+    <div class="phone"><div class="screen">
+      <div class="appbar">
+        <span class="t" id="title">BE 3D Site Viewer</span>
+        <button id="btnPick" title="Chọn file">📁</button>
+        <button id="btnClose" title="Đóng mô hình" style="display:none">✕</button>
+      </div>
+      <div class="body" id="home"></div>
+      <div class="viewer" id="viewer" style="display:none">
+        <div class="stage" id="stage"></div>
+      </div>
+    </div></div>
+    <input type="file" id="file" style="display:none">
+  </div>
+
+  <!-- =========================== GIẢI THÍCH =========================== -->
+  <div class="panel">
+    <h2>Mô phỏng này thật đến đâu?</h2>
+    <p><span class="badge y">THẬT</span> Bước <b>kiểm tra file</b> chạy đúng thuật toán của
+      <code>lib/model_check.dart</code> — đọc header GLB, quét các chunk, đọc
+      <code>extensionsRequired</code>. Cùng một logic đã được kiểm chứng song song ở Python,
+      Dart và JavaScript trên 9 ca thử giống hệt nhau.</p>
+    <p><span class="badge y">THẬT</span> Phần <b>hiển thị 3D</b> dùng chính web component
+      <code>&lt;model-viewer&gt;</code> mà <code>model_viewer_plus</code> bọc lại. Cùng một bộ render.</p>
+    <p><span class="badge y">THẬT</span> Toàn bộ <b>luồng màn hình và câu chữ</b> lấy đúng từ
+      <code>lib/main.dart</code>.</p>
+    <p><span class="badge n">KHÁC</span> Trình duyệt đọc file qua Blob URL, còn app thật dùng
+      <code>Uri.file()</code> trỏ vào bộ nhớ máy. Nên <b>lỗi đường dẫn có dấu tiếng Việt</b> và
+      <b>lỗi cleartext traffic của Android</b> không tái hiện được ở đây — hai lỗi đó chỉ xuất hiện trên máy thật.</p>
+    <p><span class="badge n">KHÁC</span> Trong bản mô phỏng, <code>&lt;model-viewer&gt;</code> tải từ CDN nên
+      cần mạng. App thật đóng gói sẵn nên không cần.</p>
+
+    <p><span class="badge y">THẬT</span> <b>Ghi chú / đánh dấu vấn đề</b> dùng đúng API chính thức
+      <code>positionAndNormalFromPoint(x,y)</code> để lấy toạ độ 3D từ điểm chạm, và gắn hotspot bằng
+      <code>slot="hotspot-N"</code> + <code>data-position</code> + <code>data-normal</code> — y hệt
+      cách sẽ chạy trong app. Toàn bộ luồng (chạm → nhập → gắn hotspot → danh sách → bay tới → xoá →
+      xuất JSON/CSV) đã được test tự động, 18/18 ca đạt.</p>
+    <p><span class="badge n">KHÁC</span> Bản mô phỏng giữ ghi chú <b>trong bộ nhớ phiên làm việc</b>
+      (môi trường này không cho dùng localStorage) — nhớ bấm <b>Xuất JSON/CSV</b> trước khi đóng tab.
+      App thật sẽ lưu thành file <code>.json</code> nằm cạnh file <code>.glb</code> nên không mất.</p>
+
+    <h3>Thử ngay không cần file của bạn</h3>
+    <p style="margin:0">Các file mẫu dưới đây được tạo ngay trong trình duyệt:</p>
+    <div class="samples">
+      <button data-s="ok">File hợp lệ</button>
+      <button data-s="draco">File nén Draco</button>
+      <button data-s="ktx2">File nén KTX2</button>
+      <button data-s="nomesh">File không có mesh</button>
+      <button data-s="cut">File bị cắt ngắn</button>
+      <button data-s="notglb">File không phải glTF</button>
+    </div>
+
+    <h3>Điều đáng thử nhất</h3>
+    <p>Kéo đúng file <code>.glb</code> bạn đã xuất từ Revit vào đây. Nếu nó báo
+      <b>Draco / KTX2 / Meshopt</b> thì đó chính là lý do điện thoại không hiện gì —
+      và bạn sẽ biết ngay mà không cần build lại APK.</p>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   PHẦN 1 — BỘ KIỂM TRA FILE  (bản JS của lib/model_check.dart)
+   Thuật toán giống hệt bản Dart: header 12 byte little-endian
+   (magic 0x46546C67 "glTF", version, tổng độ dài), rồi các chunk
+   (độ dài uint32, loại uint32, dữ liệu); JSON=0x4E4F534A, BIN=0x004E4942.
+   ===================================================================== */
+const OFFLINE_FATAL = {
+  'KHR_draco_mesh_compression': 'Draco — nén lưới',
+  'KHR_texture_basisu':         'KTX2 / BasisU — nén texture',
+  'EXT_meshopt_compression':    'Meshopt — nén lưới'
+};
+const GLB_MAGIC = 0x46546C67, CHUNK_JSON = 0x4E4F534A, CHUNK_BIN = 0x004E4942;
+const mb = b => (b/1048576).toFixed(1) + ' MB';
+
+/* ===== (v4) TOÁN MA TRẬN cho phép đo kích thước thật =====
+   Vì sao phải có phần này: min/max trong accessor POSITION là toạ độ TRONG
+   HỆ CỦA MESH, chưa nhân với vị trí đặt của node. Add-in xuất từ Revit rất
+   hay dùng lại một mesh cho nhiều instance (cửa, cột, thiết bị) rồi đặt mỗi
+   cái ở một node có translation khác nhau. Nếu chỉ gộp min/max của accessor
+   thì kích thước bao đo được có thể NHỎ HƠN thật hàng chục lần — và với AR,
+   đó chính là loại sai số làm hỏng toàn bộ việc căn mốc.
+   glTF dùng ma trận 4x4 COLUMN-MAJOR: phần tử (hàng r, cột c) = m[c*4+r]. */
+const MAT_I = [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+function matMul(a, b){            // trả về a*b (áp b trước, rồi a)
+  const o = new Array(16);
+  for (let c=0;c<4;c++) for (let r=0;r<4;r++){
+    let s = 0;
+    for (let k=0;k<4;k++) s += a[k*4+r] * b[c*4+k];
+    o[c*4+r] = s;
+  }
+  return o;
+}
+function matApply(m, v){          // nhân điểm (v,1)
+  return [
+    m[0]*v[0] + m[4]*v[1] + m[8]*v[2]  + m[12],
+    m[1]*v[0] + m[5]*v[1] + m[9]*v[2]  + m[13],
+    m[2]*v[0] + m[6]*v[1] + m[10]*v[2] + m[14],
+  ];
+}
+function trsMatrix(t, q, s){
+  const x=q[0], y=q[1], z=q[2], w=q[3];
+  const x2=x+x, y2=y+y, z2=z+z;
+  const xx=x*x2, xy=x*y2, xz=x*z2, yy=y*y2, yz=y*z2, zz=z*z2;
+  const wx=w*x2, wy=w*y2, wz=w*z2;
+  const sx=s[0], sy=s[1], sz=s[2];
+  return [
+    (1-(yy+zz))*sx, (xy+wz)*sx,     (xz-wy)*sx,     0,
+    (xy-wz)*sy,     (1-(xx+zz))*sy, (yz+wx)*sy,     0,
+    (xz+wy)*sz,     (yz-wx)*sz,     (1-(xx+yy))*sz, 0,
+    t[0], t[1], t[2], 1
+  ];
+}
+const num3 = (a, d) => (Array.isArray(a) && a.length >= 3 && a.slice(0,3).every(v => typeof v === 'number' && isFinite(v))) ? a.slice(0,3) : d;
+const num4 = (a, d) => (Array.isArray(a) && a.length >= 4 && a.slice(0,4).every(v => typeof v === 'number' && isFinite(v))) ? a.slice(0,4) : d;
+function nodeMatrix(n){
+  if (!n) return MAT_I;
+  if (Array.isArray(n.matrix) && n.matrix.length === 16 &&
+      n.matrix.every(v => typeof v === 'number' && isFinite(v))) return n.matrix.slice();
+  return trsMatrix(num3(n.translation,[0,0,0]), num4(n.rotation,[0,0,0,1]), num3(n.scale,[1,1,1]));
+}
+/* Kích thước bao THẬT: đi hết cây node, mang theo ma trận tích luỹ, biến đổi
+   cả 8 đỉnh của hộp bao local rồi mới gộp. Có chặn vòng lặp vô hạn (file lỗi
+   có thể tự tham chiếu) bằng cả visited-per-path lẫn giới hạn độ sâu. */
+function worldBounds(gltf){
+  const nodes = gltf.nodes || [], meshes = gltf.meshes || [], accs = gltf.accessors || [];
+  const localBox = new Map();     // meshIndex -> {lo,hi} | null
+  function boxOfMesh(mi){
+    if (localBox.has(mi)) return localBox.get(mi);
+    const me = meshes[mi];
+    let lo = [Infinity,Infinity,Infinity], hi = [-Infinity,-Infinity,-Infinity], ok = false;
+    for (const pr of ((me && me.primitives) || [])){
+      const ai = pr && pr.attributes && pr.attributes.POSITION;
+      if (ai == null) continue;
+      const a = accs[ai];
+      if (!a || !Array.isArray(a.min) || !Array.isArray(a.max)) continue;
+      if (a.min.length < 3 || a.max.length < 3) continue;
+      if (!a.min.slice(0,3).every(v => typeof v === 'number' && isFinite(v))) continue;
+      if (!a.max.slice(0,3).every(v => typeof v === 'number' && isFinite(v))) continue;
+      ok = true;
+      for (let k=0;k<3;k++){ lo[k]=Math.min(lo[k],a.min[k]); hi[k]=Math.max(hi[k],a.max[k]); }
+    }
+    const box = ok ? {lo, hi} : null;
+    localBox.set(mi, box);
+    return box;
+  }
+  let lo = [Infinity,Infinity,Infinity], hi = [-Infinity,-Infinity,-Infinity];
+  let nMesh = 0, nMissing = 0, nodeTransform = false, visitedNodes = 0;
+  const refMesh = new Set();      // mesh đã được node nào đó tham chiếu
+  const CAP = 200000;
+  function accum(box, m){
+    nMesh++;
+    for (let i=0;i<8;i++){
+      const p = matApply(m, [ i&1 ? box.hi[0] : box.lo[0],
+                              i&2 ? box.hi[1] : box.lo[1],
+                              i&4 ? box.hi[2] : box.lo[2] ]);
+      for (let k=0;k<3;k++){ lo[k]=Math.min(lo[k],p[k]); hi[k]=Math.max(hi[k],p[k]); }
+    }
+  }
+  function walk(ni, parent, onPath, depth){
+    if (depth > 64 || visitedNodes++ > CAP) return;
+    if (typeof ni !== 'number' || ni < 0 || ni >= nodes.length) return;
+    if (onPath.has(ni)) return;                 // file lỗi tự tham chiếu
+    const n = nodes[ni];
+    const local = nodeMatrix(n);
+    if (local.some((v,i) => Math.abs(v - MAT_I[i]) > 1e-9)) nodeTransform = true;
+    const m = matMul(parent, local);
+    if (n && typeof n.mesh === 'number'){
+      refMesh.add(n.mesh);
+      const box = boxOfMesh(n.mesh);
+      if (box) accum(box, m); else nMissing++;
+    }
+    onPath.add(ni);
+    for (const c of ((n && n.children) || [])) walk(c, m, onPath, depth+1);
+    onPath.delete(ni);
+  }
+  /* Node gốc: ưu tiên scene đang dùng. Nếu file không khai scene (có thật,
+     một số add-in bỏ qua) thì lấy mọi node không phải con của node khác. */
+  let roots = null;
+  const scenes = gltf.scenes || [];
+  const si = typeof gltf.scene === 'number' ? gltf.scene : 0;
+  if (scenes[si] && Array.isArray(scenes[si].nodes)) roots = scenes[si].nodes;
+  if (!roots || !roots.length){
+    const child = new Set();
+    for (const n of nodes) for (const c of ((n && n.children) || [])) child.add(c);
+    roots = nodes.map((_,i) => i).filter(i => !child.has(i));
+  }
+  for (const rt of roots) walk(rt, MAT_I, new Set(), 0);
+  /* Trường hợp mesh có nhưng không node nào tham chiếu (file lỗi): vẫn đo
+     hộp local để còn nói được cái gì, nhưng ghi rõ là không qua node. */
+  let orphanOnly = false;
+  if (!nMesh){
+    for (let mi=0; mi<meshes.length; mi++){
+      if (refMesh.has(mi)) continue;    // đã đếm ở vòng walk, KHÔNG đếm hai lần
+      const box = boxOfMesh(mi);
+      if (box){ orphanOnly = true; accum(box, MAT_I); }
+      else nMissing++;
+    }
+  }
+  if (!nMesh) return {ok:false, nMissing, nodeTransform, orphanOnly};
+  return {ok:true, lo, hi, dim:[hi[0]-lo[0], hi[1]-lo[1], hi[2]-lo[2]],
+          nMesh, nMissing, nodeTransform, orphanOnly};
+}
+/* ===== Đoán đơn vị — VÀ NÓI RÕ GIỚI HẠN CỦA PHÉP ĐOÁN =====
+   glTF QUY ĐỊNH đơn vị là mét, nhưng add-in xuất từ Revit không phải cái nào
+   cũng tuân thủ. Vấn đề: chỉ nhìn ĐỘ LỚN thì KHÔNG BAO GIỜ khẳng định được
+   là mét. Một toà nhà 30 m xuất ra feet cho số 98,4 — mà 98,4 m cũng là một
+   toà nhà hoàn toàn hợp lý. Hai trường hợp đó cho cùng một con số, file
+   không chứa thêm dấu hiệu nào để phân biệt.
+   Vì vậy chỉ đặt confident=true khi con số LOẠI TRỪ được mét (không có công
+   trình nào dài 3 km). Mọi trường hợp còn lại phải để người dùng xác nhận
+   bằng một khoảng cách đã biết. Nói thẳng ra như vậy còn hơn đoán bừa rồi
+   AR lệch tỷ lệ 3,28 lần mà không ai hiểu vì sao. */
+function guessUnit(maxDim){
+  if (!isFinite(maxDim) || maxDim <= 0)
+    return {unit:null, divisor:1, confident:false, text:'(không đo được)'};
+  if (maxDim > 3000)
+    return {unit:'mm', divisor:1000, confident:true,
+      text:'gần như chắc chắn là MILIMÉT (không công trình nào dài ' + Math.round(maxDim) + ' m) — phải chia 1000'};
+  if (maxDim > 400)
+    return {unit:'cm?', divisor:100, confident:false,
+      text:'có thể là CENTIMÉT (chia 100), cũng có thể là công trình rất lớn tính bằng mét — phải tự xác nhận'};
+  if (maxDim > 120)
+    return {unit:'ft?', divisor:3.28084, confident:false,
+      text:'có thể là FEET (chia 3,28), cũng có thể là công trình lớn tính bằng mét — phải tự xác nhận'};
+  return {unit:'m?', divisor:1, confident:false,
+    text:'hợp lý nếu là MÉT (đúng chuẩn glTF). Nhưng CHÚ Ý: nếu đây là feet thì công trình thật chỉ '
+       + (maxDim/3.28084).toFixed(1) + ' m — chỉ nhìn con số thì không phân biệt được, phải tự xác nhận'};
+}
+/* ===== Đoán trục cao =====
+   Căn cứ: glTF quy định Y hướng lên, Revit là Z hướng lên. Add-in quên đổi
+   thì mô hình nằm nghiêng 90°. Dấu hiệu: công trình thường "dẹt" — chiều cao
+   nhỏ hơn hẳn hai chiều mặt bằng, VÀ hai chiều mặt bằng đó không quá lệch
+   nhau (một mặt bằng, không phải một dải dài).
+   Hai trường hợp bắt buộc trả về KHÔNG KẾT LUẬN: nhà tháp (cao hơn rộng) và
+   khối dài mảnh như 91×2×1 (đường ống, một dãy cột) — hình dạng đó không cho
+   biết gì về trục cao. */
+const UP_FLAT = 0.7;      // chiều cao phải nhỏ hơn 0,7 lần cả hai chiều kia
+const UP_ASPECT = 6;      // hai chiều mặt bằng lệch nhau quá 6 lần thì không phải mặt bằng
+function guessUpAxis(dim){
+  if (!Array.isArray(dim) || dim.length < 3 || !dim.every(v => typeof v === 'number' && isFinite(v) && v >= 0))
+    return {axis:null, why:'không đo được kích thước'};
+  const name = ['X','Y','Z'];
+  for (let k=0;k<3;k++){
+    const f = [dim[(k+1)%3], dim[(k+2)%3]];             // hai chiều mặt bằng
+    if (!(dim[k] < UP_FLAT * f[0] && dim[k] < UP_FLAT * f[1])) continue;
+    const aspect = Math.min(...f) > 0 ? Math.max(...f) / Math.min(...f) : Infinity;
+    if (aspect > UP_ASPECT)
+      return {axis:null, why:'khối dài mảnh (hai chiều ngang lệch nhau ' + aspect.toFixed(0)
+        + ' lần) nên hình dạng không cho biết trục nào là chiều cao — phải xem bằng mắt'};
+    if (k === 1)
+      return {axis:'Y', why:'chiều Y ngắn hơn hẳn hai chiều X-Z và X-Z tương đương nhau — khớp chuẩn glTF (Y hướng lên), add-in có vẻ đã đổi trục đúng'};
+    if (k === 2)
+      return {axis:'Z', why:'chiều Z ngắn hơn hẳn hai chiều X-Y — giống hệ trục Revit (Z hướng lên), add-in CÓ THỂ CHƯA đổi sang chuẩn glTF'};
+    return {axis:'X', why:'chiều X ngắn hơn hẳn Y-Z — lạ, không khớp cả glTF lẫn Revit, nên kiểm lại add-in xuất file'};
+  }
+  return {axis:null, why:'ba chiều không chênh nhau rõ (nhà tháp, hoặc một khu nhỏ, đều cho hình dạng như vậy) — không kết luận được từ file, phải xem bằng mắt'};
+}
+
+function inspectModelBuffer(buf, name){
+  const r = {name, sizeBytes: buf.byteLength, kind:null, errors:[], warnings:[], arNotes:[], info:{}};
+  const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
+  if (ext !== 'glb' && ext !== 'gltf')
+    r.warnings.push('Đuôi file là ".'+ext+'" — app đọc .glb (khuyên dùng) hoặc .gltf. Vẫn thử đọc nội dung.');
+  if (buf.byteLength < 12){
+    r.errors.push('File chỉ có '+buf.byteLength+' byte — quá nhỏ để là glTF/GLB.'); return r;
+  }
+  const dv = new DataView(buf);
+  const magic = dv.getUint32(0, true), version = dv.getUint32(4, true), declared = dv.getUint32(8, true);
+  let gltf = null;
+
+  if (magic === GLB_MAGIC){
+    r.kind = 'glb';
+    r.info['Định dạng'] = 'GLB (nhị phân, gói trong 1 file)';
+    r.info['glTF version'] = String(version);
+    if (version !== 2)
+      r.warnings.push('File là glTF version '+version+'. model-viewer chỉ hỗ trợ glTF 2.0 — hãy xuất lại bằng add-in hỗ trợ glTF 2.0.');
+    if (declared !== buf.byteLength)
+      r.warnings.push('Độ dài ghi trong header ('+declared+' byte) khác kích thước file thực ('+buf.byteLength+' byte) — file có thể bị cắt hoặc hỏng khi copy/tải. Hãy copy lại file.');
+
+    let jsonChunk = null, pos = 12;
+    while (pos + 8 <= buf.byteLength){
+      const clen = dv.getUint32(pos, true), ctype = dv.getUint32(pos+4, true), start = pos + 8;
+      if (start + clen > buf.byteLength){
+        r.errors.push('File bị cắt ngắn: một khối dữ liệu bên trong khai báo '+clen+' byte nhưng file đã hết. Hãy copy lại file.');
+        break;
+      }
+      if (ctype === CHUNK_JSON) jsonChunk = new Uint8Array(buf, start, clen);
+      else if (ctype === CHUNK_BIN) r.info['Dữ liệu hình học (BIN)'] = mb(clen);
+      pos = start + clen;
+    }
+    if (!jsonChunk){
+      if (!r.errors.length) r.errors.push('Không tìm thấy khối JSON trong file GLB — file không hợp lệ.');
+      return r;
+    }
+    try { gltf = JSON.parse(new TextDecoder('utf-8').decode(jsonChunk).trim()); }
+    catch(e){ r.errors.push('Khối JSON trong GLB không đọc được: '+e.message); return r; }
+  } else {
+    try {
+      gltf = JSON.parse(new TextDecoder('utf-8').decode(new Uint8Array(buf)));
+      r.kind = 'gltf';
+      r.info['Định dạng'] = 'glTF (JSON dạng text)';
+      r.warnings.push('Đây là .gltf — dạng này thường tham chiếu file .bin và ảnh texture NẰM RIÊNG bên ngoài. Nếu chỉ copy 1 file .gltf sang điện thoại thì model sẽ trống hoặc mất vật liệu. Hãy xuất lại dạng .glb.');
+    } catch(_){
+      r.errors.push('File không có chữ ký "glTF" ở đầu và cũng không phải JSON hợp lệ. Đây không phải file .glb/.gltf — hãy kiểm tra lại bước xuất từ Revit.');
+      return r;
+    }
+  }
+
+  const asset = gltf.asset || {};
+  r.info['Xuất bởi (generator)'] = asset.generator || '(không ghi)';
+  const cnt = k => (gltf[k] || []).length;
+  const meshCount = cnt('meshes');
+  r.info['Số mesh'] = String(meshCount);
+  r.info['Số vật liệu'] = String(cnt('materials'));
+  r.info['Số texture'] = String(cnt('textures'));
+  r.info['Số node'] = String(cnt('nodes'));
+  r.info['Số scene'] = String(cnt('scenes'));
+
+  /* --- (v3) RÚT DỮ LIỆU CÓ THỂ DÙNG ĐỂ LỌC ---
+     Sự thật cần biết: file .glb KHÔNG nghiễm nhiên giữ Category / Workset /
+     Family của Revit. Nó chỉ có node, mesh, vật liệu — và TÊN của chúng, cộng
+     thêm trường `extras` NẾU add-in xuất chịu ghi vào. Vì vậy trước khi làm
+     giao diện lọc, phải xem file thật còn gì. Đoạn này đọc đúng những thứ đó. */
+  const nodes = gltf.nodes || [], meshes = gltf.meshes || [], mats = gltf.materials || [];
+  const extrasKeys = new Set();
+  let nodesWithExtras = 0;
+  for (const arr of [nodes, meshes]) {
+    for (const o of arr) {
+      if (o && o.extras && typeof o.extras === 'object') {
+        nodesWithExtras++;
+        Object.keys(o.extras).forEach(k => extrasKeys.add(k));
+      }
+    }
+  }
+  const named = a => a.filter(o => o && o.name).map(o => o.name);
+  r.groups = {
+    materials: mats.map((m,i) => ({index:i, name:(m && m.name) || ('Vật liệu ' + i)})),
+    extrasKeys: [...extrasKeys],
+    nodesWithExtras,
+    nodeNames: named(nodes).slice(0, 400),
+    meshNames: named(meshes).slice(0, 400),
+  };
+  r.info['Node có tên'] = named(nodes).length + ' / ' + nodes.length;
+  r.info['Mesh có tên'] = named(meshes).length + ' / ' + meshes.length;
+  r.info['Có trường extras'] = nodesWithExtras
+      ? (nodesWithExtras + ' đối tượng, khoá: ' + [...extrasKeys].slice(0,8).join(', '))
+      : '(không có — không lọc được theo Category/Workset)';
+  if (named(nodes).length) r.info['Ví dụ tên node'] = named(nodes).slice(0,3).join('  |  ');
+
+  /* --- (v4) KÍCH THƯỚC & TRỤC — bắt buộc phải đúng nếu định làm AR ---
+     glTF quy định đơn vị là MÉT. Nhưng add-in xuất từ Revit không phải cái nào
+     cũng tuân thủ: có bản xuất ra feet, có bản xuất ra milimét. Sai tỷ lệ thì
+     mô hình đặt vào không gian thật sẽ to/nhỏ sai hàng chục lần, và mọi thứ
+     căn chỉnh bằng mốc QR trở nên vô nghĩa. Cũng cần biết trục nào là chiều
+     cao: glTF quy định Y hướng lên, còn Revit là Z hướng lên — nếu add-in
+     quên đổi thì mô hình sẽ nằm nghiêng khi đặt vào thực tế.
+
+     Đọc min/max của các accessor POSITION để suy ra kích thước bao. Lưu ý:
+     nếu có node mang scale/matrix thì kích thước thật sẽ khác — có bắt và
+     cảnh báo riêng, KHÔNG lặng lẽ báo một con số có thể sai. */
+  const wb = worldBounds(gltf);
+  r.size = null;
+  if (wb.ok){
+    const d = wb.dim, big = Math.max(d[0], d[1], d[2]);
+    const unit = guessUnit(big), up = guessUpAxis(d);
+    r.size = {min:wb.lo, max:wb.hi, dim:d, nMesh:wb.nMesh, nMissing:wb.nMissing,
+              nodeTransform:wb.nodeTransform, orphanOnly:wb.orphanOnly,
+              unit:unit.unit, divisor:unit.divisor, unitConfident:unit.confident, up:up.axis};
+    const f = v => Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(2);
+    r.info['Kích thước bao (đơn vị của file)'] = `X ${f(d[0])} × Y ${f(d[1])} × Z ${f(d[2])}`;
+    r.info['Đoán đơn vị'] = unit.text;
+    r.info['Đoán trục cao'] = (up.axis ? up.axis + ' — ' : '') + up.why;
+    /* Việc XEM mô hình thì sai tỷ lệ không sao — vẫn xoay, vẫn zoom được.
+       Chỉ khi làm AR (đặt mô hình vào không gian thật) thì tỷ lệ và trục mới
+       thành sống còn. Nên tách riêng: warnings = có thể sai ngay bây giờ,
+       arNotes = phải xác nhận trước khi cắm mốc ngoài công trường. */
+    r.arNotes = r.arNotes || [];
+    if (unit.confident)
+      r.warnings.push('Kích thước lớn nhất đo được là ' + f(big) + ' đơn vị — ' + unit.text
+        + '. glTF quy định đơn vị là MÉT nhưng add-in này không tuân thủ.');
+    r.arNotes.push('TỶ LỆ: kích thước lớn nhất trong file là ' + f(big) + ' đơn vị. ' + unit.text
+      + '. Cách xác nhận duy nhất chắc chắn: lấy một khoảng cách bạn đã biết trong công trình '
+      + '(chiều cao cửa 2,1 m, bước cột, bề rộng gian) rồi đo lại trên mô hình. '
+      + 'Chỉ nhìn con số tổng thì không phân biệt được mét với feet.');
+    if (up.axis === 'Z')
+      r.warnings.push('Có dấu hiệu mô hình vẫn theo hệ trục Revit (Z hướng lên) chứ chưa đổi sang chuẩn glTF (Y hướng lên). '
+        + 'Nếu đúng vậy thì khi đặt vào không gian thật mô hình sẽ NẰM NGHIÊNG 90°. Hãy xem thử: mở mô hình, nếu thấy nhà đứng đúng thì bỏ qua cảnh báo này.');
+    if (up.axis !== 'Y')
+      r.arNotes.push('TRỤC CAO: ' + up.why + '. Trước khi cắm mốc phải chắc mô hình đứng đúng, '
+        + 'vì AR xoay mô hình quanh trục thẳng đứng — sai trục thì càng xoay càng lệch.');
+    if (wb.nodeTransform)
+      r.arNotes.push('Mô hình có node mang phép biến đổi riêng (dịch/xoay/phóng). Kích thước trên đã tính đủ các phép đó, '
+        + 'nhưng nếu sau này đổi tỷ lệ thì phải đổi ở gốc mô hình, không đổi lẻ từng node.');
+    if (wb.nMissing)
+      r.warnings.push(wb.nMissing + ' mesh không khai min/max cho accessor POSITION nên không được tính vào kích thước bao — '
+        + 'kích thước thật có thể lớn hơn con số trên.');
+    if (wb.orphanOnly)
+      r.warnings.push('Không node nào tham chiếu tới mesh — kích thước trên đo trong hệ của mesh, chưa qua vị trí đặt. '
+        + 'File này có thể thiếu phần scene, một số phần mềm sẽ không hiện gì.');
+  } else {
+    r.info['Kích thước bao (đơn vị của file)'] = '(không đo được — accessor POSITION thiếu min/max)';
+    if (meshCount > 0)
+      r.warnings.push('Không đo được kích thước mô hình vì accessor POSITION thiếu min/max. '
+        + 'Chưa thể kiểm tra tỷ lệ — nếu định làm AR thì phải đo bằng tay ngoài công trường.');
+  }
+
+  const req = (gltf.extensionsRequired || []).map(String);
+  r.info['extensionsRequired'] = req.length ? req.join(', ') : '(không có — tốt cho offline)';
+  for (const e of req){
+    if (OFFLINE_FATAL[e])
+      r.errors.push('Model dùng '+e+' ('+OFFLINE_FATAL[e]+'). model-viewer phải TẢI BỘ GIẢI MÃ TỪ INTERNET mới đọc được phần này, nên nó KHÔNG hoạt động offline. Hãy xuất lại .glb từ Revit với tuỳ chọn nén này TẮT.');
+    else
+      r.warnings.push('Model yêu cầu phần mở rộng "'+e+'" — nếu model-viewer không hỗ trợ, model có thể không hiện hoặc hiện sai.');
+  }
+  if (meshCount === 0)
+    r.warnings.push('File không chứa mesh nào (số mesh = 0) — sẽ không thấy hình gì. Có thể lúc xuất từ Revit chưa chọn đối tượng, hoặc view đang ẩn hết.');
+  if (buf.byteLength > 150*1024*1024)
+    r.warnings.push('File nặng '+mb(buf.byteLength)+' — điện thoại có thể hết RAM và trắng màn hình. Nên xuất từng khu/từng tầng thành file nhỏ hơn.');
+  return r;
+}
+/* (v3.1 - SỬA BÁO SAI) Có `extras` KHÔNG có nghĩa là có Category/Workset.
+   File thật của người dùng có extras với khoá uniqueId / elementId /
+   gridParameters — toàn mã định danh, không hề có Category hay Workset.
+   Bản trước thấy có extras là kết luận bừa "CÓ dữ liệu Category/Workset".
+   Nay phải soi ĐÚNG TÊN KHOÁ rồi mới kết luận. */
+const KEY_HINTS = {
+  category: /categor/i,
+  workset:  /workset/i,
+  family:   /family|typename|elementtype|\btype\b/i,
+  level:    /^level$|storey|\bfloor\b/i,
+};
+function classifyExtras(keys){
+  keys = keys || [];
+  const found = {};
+  for (const k of Object.keys(KEY_HINTS)) found[k] = keys.filter(x => KEY_HINTS[k].test(x));
+  const usable = Object.keys(found).filter(k => found[k].length);
+  const ids = keys.filter(x => /(^|_)(id|uniqueid|elementid|guid)$/i.test(x));
+  return {
+    found, usable,
+    hasGrouping: usable.length > 0,
+    idOnly: keys.length > 0 && usable.length === 0,
+    ids,
+  };
+}
+
+/* =====================================================================
+   PHẦN 9 — CĂN MÔ HÌNH VÀO THỰC ĐỊA (nền tảng cho MỨC 3 / ARCore)
+   =====================================================================
+   Bài toán: ARCore cho biết máy đang ở đâu trong "thế giới ARCore" (mét,
+   Y hướng lên). Mô hình thì ở trong hệ toạ độ riêng của file (đơn vị chưa
+   chắc là mét, gốc ở đâu không biết, hướng bắc không biết). Cần tìm một
+   phép biến đổi đưa hệ mô hình về hệ ARCore.
+
+   Phép biến đổi gồm ĐÚNG 6 ẩn, không hơn:
+      - s      : tỷ lệ (một số duy nhất — giải luôn được chuyện mét/feet/mm)
+      - θ      : góc quay quanh trục THẲNG ĐỨNG (không cho nghiêng, vì công
+                 trình không nghiêng; ràng buộc này làm bài toán ổn định hơn
+                 hẳn so với cho quay tự do 3 trục)
+      - t      : dịch chuyển 3 chiều
+   Dữ liệu vào: mỗi mốc cho một cặp điểm (điểm trong mô hình ↔ điểm ARCore
+   đo được khi quét mốc).
+
+   VÌ SAO CÁCH NÀY BỎ ĐƯỢC LA BÀN: la bàn trong công trình bê tông cốt thép
+   gần như không dùng được (thép, cáp điện, máy hàn làm lệch hàng chục độ).
+   Hai mốc trở lên cho ra góc θ bằng hình học thuần, không cần từ trường.
+
+   VÌ SAO CÁCH NÀY GIẢI ĐƯỢC CHUYỆN ĐƠN VỊ: bộ đọc file chỉ ĐOÁN được đơn vị
+   chứ không khẳng định (98,4 có thể là 98,4 m mà cũng có thể là 30 m tính
+   bằng feet — xem guessUnit). Hai mốc cho tỷ lệ s bằng phép đo thật.
+
+   SỐ MỐC CẦN THIẾT — nói rõ để không ai kỳ vọng sai:
+      1 mốc  : có vị trí + hướng (lấy từ chính pose 6-DoF của mốc), NHƯNG
+               tỷ lệ vẫn phải tin vào file. Sai đơn vị là lệch ngay.
+      2 mốc  : đủ 6 ẩn -> có cả tỷ lệ. Nhưng vừa đủ nên KHÔNG CÓ SỐ DƯ,
+               nghĩa là sai số bằng 0 một cách hình thức, không nói lên gì.
+      3 mốc+ : có số dư -> tính được SAI SỐ THẬT bằng mét và báo cho người
+               dùng. Đây là mức duy nhất dám nói "căn lệch khoảng ±x cm".
+   ===================================================================== */
+const ALIGN_MIN_SPAN = 1e-6;   // hai mốc trùng nhau theo phương ngang thì vô nghĩa
+
+/* Quay quanh trục Y (thẳng đứng) một góc θ, theo đúng quy ước glTF/three.js */
+function rotY(p, cos, sin){
+  return [ p[0]*cos + p[2]*sin, p[1], -p[0]*sin + p[2]*cos ];
+}
+/* Khớp phép biến đổi (s, θ quanh trục đứng, t) đưa modelPts -> worldPts theo
+   bình phương tối thiểu. Đây là bài toán Procrustes có ràng buộc, giải được
+   bằng công thức đóng — KHÔNG lặp, không cần thư viện, chạy được trên điện
+   thoại trong micro giây, và kiểm chứng được bằng số.
+   Trả về {ok, s, yawDeg, t, rmsMeters, maxMeters, n, why} */
+function fitYawSimilarity(modelPts, worldPts){
+  const bad = why => ({ok:false, why});
+  if (!Array.isArray(modelPts) || !Array.isArray(worldPts))
+    return bad('thiếu dữ liệu mốc');
+  const n = Math.min(modelPts.length, worldPts.length);
+  if (n !== modelPts.length || n !== worldPts.length)
+    return bad('số điểm mô hình và số điểm thực địa không khớp nhau');
+  if (n < 2)
+    return bad('cần ít nhất 2 mốc để tính được cả tỷ lệ và hướng (1 mốc chỉ cho vị trí)');
+  const fin = a => Array.isArray(a) && a.length >= 3 &&
+      a.slice(0,3).every(v => typeof v === 'number' && isFinite(v));
+  for (let i=0;i<n;i++){
+    if (!fin(modelPts[i]) || !fin(worldPts[i]))
+      return bad('mốc thứ ' + (i+1) + ' có toạ độ không hợp lệ');
+  }
+  // Trọng tâm
+  const mean = arr => {
+    const m = [0,0,0];
+    for (const p of arr) for (let k=0;k<3;k++) m[k] += p[k];
+    return m.map(v => v/arr.length);
+  };
+  const pm = mean(modelPts.slice(0,n)), qm = mean(worldPts.slice(0,n));
+  const a = [], b = [];
+  for (let i=0;i<n;i++){
+    a.push([modelPts[i][0]-pm[0], modelPts[i][1]-pm[1], modelPts[i][2]-pm[2]]);
+    b.push([worldPts[i][0]-qm[0], worldPts[i][1]-qm[1], worldPts[i][2]-qm[2]]);
+  }
+  /* Góc quay: cực đại hoá Σ b·R(θ)a  ->  θ = atan2(S, C).
+     Nếu cả C và S đều ~0 thì các mốc nằm trên một đường THẲNG ĐỨNG (hoặc
+     trùng nhau) theo phương ngang -> không suy ra được hướng. Phải bắt. */
+  let C = 0, S = 0, spanA = 0, spanB = 0, denom = 0, dotY = 0;
+  for (let i=0;i<n;i++){
+    C += b[i][0]*a[i][0] + b[i][2]*a[i][2];
+    S += b[i][0]*a[i][2] - b[i][2]*a[i][0];
+    spanA += a[i][0]*a[i][0] + a[i][2]*a[i][2];
+    spanB += b[i][0]*b[i][0] + b[i][2]*b[i][2];
+    denom += a[i][0]*a[i][0] + a[i][1]*a[i][1] + a[i][2]*a[i][2];
+    dotY  += a[i][1]*b[i][1];
+  }
+  if (spanA <= ALIGN_MIN_SPAN)
+    return bad('các mốc trong mô hình nằm trên cùng một đường thẳng đứng (hoặc trùng nhau) — không suy ra được hướng. Hãy đặt các mốc CÁCH XA NHAU theo phương ngang.');
+  if (spanB <= ALIGN_MIN_SPAN)
+    return bad('các điểm đo ngoài thực địa nằm trên cùng một đường thẳng đứng — hãy dán mốc ở hai vị trí cách nhau theo phương ngang.');
+  if (denom <= ALIGN_MIN_SPAN)
+    return bad('các mốc trong mô hình trùng nhau');
+  const hyp = Math.sqrt(C*C + S*S);
+  if (hyp <= ALIGN_MIN_SPAN * Math.max(1, spanA))
+    return bad('hình dạng các mốc không cho biết hướng — hãy thêm một mốc ở chỗ khác');
+  const cos = C/hyp, sin = S/hyp;
+  const s = (hyp + dotY) / denom;
+  if (!(s > 0) || !isFinite(s))
+    return bad('tỷ lệ tính ra không dương — có thể các mốc bị nhập lẫn thứ tự, hoặc mô hình bị lật (âm bản)');
+  // Dịch chuyển
+  const Rpm = rotY(pm, cos, sin);
+  const t = [qm[0] - s*Rpm[0], qm[1] - s*Rpm[1], qm[2] - s*Rpm[2]];
+  // Sai số còn lại — con số duy nhất dám đưa cho người dùng
+  let sum2 = 0, worst = 0;
+  for (let i=0;i<n;i++){
+    const r = rotY(modelPts[i], cos, sin);
+    const e = [ s*r[0]+t[0]-worldPts[i][0], s*r[1]+t[1]-worldPts[i][1], s*r[2]+t[2]-worldPts[i][2] ];
+    const d2 = e[0]*e[0] + e[1]*e[1] + e[2]*e[2];
+    sum2 += d2;
+    worst = Math.max(worst, Math.sqrt(d2));
+  }
+  let yawDeg = Math.atan2(sin, cos) * 180 / Math.PI;
+  yawDeg = ((yawDeg % 360) + 360) % 360;
+  return {ok:true, s, yawDeg, t, cos, sin, n,
+          rmsMeters: Math.sqrt(sum2/n), maxMeters: worst,
+          exact: n === 2,
+          why: n === 2 ? 'vừa đủ 2 mốc nên sai số bằng 0 một cách hình thức — con số này KHÔNG chứng minh căn đúng. Thêm mốc thứ 3 mới biết thật sự lệch bao nhiêu.'
+                       : 'có ' + n + ' mốc nên sai số dưới đây là số thật, đo được.'};
+}
+/* ---------------------------------------------------------------------
+   KHỚP KHI ĐÃ BIẾT TRƯỚC TỶ LỆ (dùng cho lần mở app thứ hai trở đi)
+   ---------------------------------------------------------------------
+   Tỷ lệ là thuộc tính của FILE, không phải của buổi làm việc. Đo một lần là
+   xong vĩnh viễn. Lần sau mở lại thì chỉ còn 4 ẩn: góc quay quanh trục đứng
+   và ba thành phần dịch chuyển.
+
+   HỆ QUẢ RẤT CÓ LỢI: 2 mốc cho 6 phương trình mà chỉ có 4 ẩn, tức là CÒN DƯ
+   2 bậc — nên tính được sai số THẬT ngay với 2 mốc. Trong khi nếu chưa biết
+   tỷ lệ (6 ẩn) thì 2 mốc vừa đủ, sai số luôn bằng 0 và không nói lên gì.
+   Nghĩa là lần thứ hai trở đi chỉ cần đi tới 2 mốc thay vì 3.
+
+   Góc quay tính y hệt trường hợp chưa biết tỷ lệ — vì phép ước lượng góc
+   không phụ thuộc vào tỷ lệ (xem chứng minh: cực đại hoá Σ b·R(θ)a, biểu
+   thức này không chứa s). Chỉ khác ở chỗ không đi tìm s nữa. */
+function khopVoiTyLeCoSan(modelPts, worldPts, s){
+  const bad = why => ({ok:false, why});
+  if (!(s > 0) || !isFinite(s)) return bad('tỷ lệ đã lưu không hợp lệ');
+  if (!Array.isArray(modelPts) || !Array.isArray(worldPts)) return bad('thiếu dữ liệu mốc');
+  const n = Math.min(modelPts.length, worldPts.length);
+  if (n !== modelPts.length || n !== worldPts.length)
+    return bad('số điểm mô hình và số điểm thực địa không khớp nhau');
+  if (n < 2) return bad('cần ít nhất 2 mốc để biết hướng (1 mốc chỉ cho vị trí)');
+  const fin = a => Array.isArray(a) && a.length >= 3 &&
+      a.slice(0,3).every(v => typeof v === 'number' && isFinite(v));
+  for (let i=0;i<n;i++)
+    if (!fin(modelPts[i]) || !fin(worldPts[i]))
+      return bad('mốc thứ ' + (i+1) + ' có toạ độ không hợp lệ');
+
+  const mean = arr => {
+    const m = [0,0,0];
+    for (const p of arr) for (let k=0;k<3;k++) m[k] += p[k];
+    return m.map(v => v/arr.length);
+  };
+  const pm = mean(modelPts.slice(0,n)), qm = mean(worldPts.slice(0,n));
+  let C = 0, S = 0, spanA = 0;
+  for (let i=0;i<n;i++){
+    const a = [modelPts[i][0]-pm[0], modelPts[i][1]-pm[1], modelPts[i][2]-pm[2]];
+    const b = [worldPts[i][0]-qm[0], worldPts[i][1]-qm[1], worldPts[i][2]-qm[2]];
+    C += b[0]*a[0] + b[2]*a[2];
+    S += b[0]*a[2] - b[2]*a[0];
+    spanA += a[0]*a[0] + a[2]*a[2];
+  }
+  if (spanA <= ALIGN_MIN_SPAN)
+    return bad('các mốc nằm trên cùng một đường thẳng đứng (hoặc trùng nhau) — không suy ra được hướng. Hãy chọn hai mốc CÁCH XA NHAU theo phương ngang.');
+  const hyp = Math.sqrt(C*C + S*S);
+  if (hyp <= ALIGN_MIN_SPAN * Math.max(1, spanA))
+    return bad('hình dạng các mốc không cho biết hướng — hãy dùng một mốc ở chỗ khác');
+  const cos = C/hyp, sin = S/hyp;
+  const Rpm = rotY(pm, cos, sin);
+  const t = [qm[0] - s*Rpm[0], qm[1] - s*Rpm[1], qm[2] - s*Rpm[2]];
+
+  let sum2 = 0, worst = 0;
+  for (let i=0;i<n;i++){
+    const r = rotY(modelPts[i], cos, sin);
+    const e = [ s*r[0]+t[0]-worldPts[i][0], s*r[1]+t[1]-worldPts[i][1], s*r[2]+t[2]-worldPts[i][2] ];
+    const d2 = e[0]*e[0] + e[1]*e[1] + e[2]*e[2];
+    sum2 += d2; worst = Math.max(worst, Math.sqrt(d2));
+  }
+  let yawDeg = Math.atan2(sin, cos) * 180 / Math.PI;
+  yawDeg = ((yawDeg % 360) + 360) % 360;
+  return {ok:true, s, yawDeg, t, cos, sin, n, tyLeCoSan:true,
+          rmsMeters: Math.sqrt(sum2/n), maxMeters: worst,
+          exact: false,     // KHÔNG BAO GIỜ vừa đủ ẩn: luôn còn dư bậc
+          why: 'dùng tỷ lệ đã đo từ trước nên chỉ còn 4 ẩn — ' + n
+             + ' mốc vẫn còn dư bậc, sai số dưới đây là số thật đo được.'};
+}
+
+/* Áp phép biến đổi cho một điểm mô hình -> toạ độ thực địa (mét) */
+function applyFit(fit, p){
+  if (!fit || !fit.ok) return null;
+  const r = rotY(p, fit.cos, fit.sin);
+  return [fit.s*r[0]+fit.t[0], fit.s*r[1]+fit.t[1], fit.s*r[2]+fit.t[2]];
+}
+/* Ngược lại: máy đang ở đâu (toạ độ ARCore) -> điểm nào trong mô hình.
+   Đây chính là hàm mà MỨC 3 gọi mỗi khung hình để đặt camera. */
+function inverseFit(fit, q){
+  if (!fit || !fit.ok) return null;
+  const d = [(q[0]-fit.t[0])/fit.s, (q[1]-fit.t[1])/fit.s, (q[2]-fit.t[2])/fit.s];
+  return rotY(d, fit.cos, -fit.sin);      // quay ngược
+}
+/* Đánh giá độ tin cậy để hiện cho người dùng, kèm ngưỡng nói rõ căn cứ. */
+function alignQuality(fit){
+  if (!fit || !fit.ok) return {level:'khong', text:'chưa căn được: ' + (fit ? fit.why : 'chưa có mốc')};
+  /* Điều quyết định KHÔNG phải là số mốc, mà là bài toán còn DƯ BẬC hay không.
+     - Chưa biết tỷ lệ (6 ẩn): 2 mốc là vừa đủ -> sai số luôn bằng 0, vô nghĩa.
+     - Đã biết tỷ lệ (4 ẩn): 2 mốc đã dư bậc -> sai số là số thật.
+     Bản trước xét cứng `n < 3` nên xếp nhầm trường hợp thứ hai vào "chưa
+     biết", làm mất đúng cái lợi của việc đã đo tỷ lệ từ lần trước. */
+  if (fit.exact)
+    return {level:'chua_biet', text:'Đã căn bằng ' + fit.n + ' mốc nhưng CHƯA BIẾT sai số — '
+      + 'với ' + fit.n + ' mốc và tỷ lệ chưa xác định thì bài toán vừa đủ ẩn, sai số luôn hiện 0. '
+      + 'Thêm một mốc nữa, hoặc đo tỷ lệ trước, thì mới đo được sai số thật.'};
+  const e = fit.maxMeters;
+  if (e <= 0.05) return {level:'tot',  text:'Lệch nhiều nhất ' + (e*100).toFixed(0) + ' cm — tốt.'};
+  if (e <= 0.20) return {level:'tam',  text:'Lệch nhiều nhất ' + (e*100).toFixed(0) + ' cm — dùng được để định vị, không dùng để nghiệm thu kích thước.'};
+  if (e <= 1.00) return {level:'kem',  text:'Lệch tới ' + (e*100).toFixed(0) + ' cm — chỉ nên tin ở mức "đúng khu vực", đủ để biết đang ở đâu chứ không đủ để đối chiếu kích thước. Với cách cắm mốc bằng mắt thì mức này là bình thường; muốn chính xác hơn phải cắm mốc xa nhau hơn.'};
+  return {level:'sai', text:'Lệch ' + e.toFixed(1) + ' m — gần như chắc chắn có một mốc sai: đứng nhầm cột, chạm nhầm điểm trên mô hình, hoặc nhập sai toạ độ. Không nên dùng.'};
+}
+
+/* =====================================================================
+   PHẦN 9B — CẮM MỐC BẰNG MẮT (thay cho mốc QR)
+   =====================================================================
+   Ý TƯỞNG: thay vì in mốc QR rồi dán ngoài công trường, người dùng đứng tại
+   một điểm nhận ra được ngoài đời (chân cột A1, giao trục, góc phòng), rồi
+   CHẠM ĐÚNG ĐIỂM ĐÓ trên mô hình. Làm ở hai điểm là đủ cho máy tự tính ra
+   tỷ lệ, hướng và vị trí — bằng chính fitYawSimilarity đã có 56 ca test.
+
+   VÌ SAO BỎ ĐƯỢC MỐC QR: tài liệu ARCore của Google nói rõ mã QR là ảnh mốc
+   KÉM. Muốn dùng phải in thêm hoa văn riêng, phải chấm điểm, phải nạp vào cơ
+   sở dữ liệu ảnh lúc build. Bỏ QR là bỏ luôn cả nhóm sự cố: mốc bẩn, mốc ướt,
+   mốc loá nắng, mốc dán không phẳng, máy in co giãn làm sai tỷ lệ.
+
+   VÌ SAO CHẠM HAI ĐIỂM CHỨ KHÔNG PHẢI XOAY VIEW CHO KHỚP: xoay view cho khớp
+   bắt người dùng ƯỚC LƯỢNG GÓC BẰNG MẮT, mà góc chính là thứ gây sai số lớn
+   nhất. Hai điểm cách xa nhau cho ra góc bằng hình học, chính xác hơn hẳn và
+   không cần la bàn (la bàn giữa cốt thép thì vô dụng).
+
+   CON SỐ PHẢI NHỚ — đo được, không phải đoán (nghien_cuu_cam_moc_bang_mat.mjs
+   bơm sai số 40 cm/điểm vào chính hàm fitYawSimilarity, 400 lần mỗi cấu hình):
+
+        hai mốc cách nhau    lệch hướng    cấu kiện cách 30 m bị đặt lệch
+             2 m              13,2°               11,3 m   <- vô dụng
+            10 m               2,6°                2,6 m
+            20 m               1,4°                1,6 m   <- ngưỡng dùng được
+            50 m               0,5°                0,9 m
+        (mốc QR, 20 m)         0,06°               8 cm    <- QR chính xác hơn ~20 lần
+
+   Nên: BẮT ĐẦU CẢNH BÁO khi hai mốc gần nhau dưới 20 m.
+   ===================================================================== */
+const MOC_MIN_M = 20;        // khoảng cách tối thiểu nên có giữa hai mốc
+const MOC_RAT_GAN_M = 5;     // dưới mức này thì gần như chắc chắn hỏng
+
+/* Khoảng cách NGANG giữa hai điểm trong hệ thực địa (mét).
+   Chỉ tính phương ngang: hai mốc chồng nhau theo phương đứng (tầng 1 và tầng
+   2 cùng một vị trí) thì không cho biết gì về hướng — xem test C7 của
+   fitYawSimilarity. */
+function khoangCachNgang(a, b){
+  return Math.hypot(a[0] - b[0], a[2] - b[2]);
+}
+
+/* Kho chứa các mốc đã cắm. Mỗi mốc là một CẶP điểm:
+     P = toạ độ trong mô hình (lấy từ positionAndNormalFromPoint khi chạm)
+     Q = toạ độ ngoài thực địa (ARCore cho; bản mô phỏng thì giả lập)  */
+const MocMat = {
+  ds: [],
+  _id: 0,
+  them(P, Q, ten){
+    const m = {id: ++this._id, P: P.slice(0,3), Q: Q.slice(0,3),
+               ten: ten || ('Mốc ' + (this._id))};
+    this.ds.push(m);
+    return m;
+  },
+  xoa(id){ this.ds = this.ds.filter(m => m.id !== id); },
+  xoaHet(){ this.ds = []; this._id = 0; },
+  so(){ return this.ds.length; },
+  /* Khớp phép biến đổi. Trả về đúng thứ fitYawSimilarity trả về, kèm phần
+     nhận xét riêng cho cách cắm mốc bằng mắt. */
+  khop(){
+    if (this.ds.length < 2)
+      return {ok:false, why:'mới có ' + this.ds.length + ' mốc — cần ít nhất 2 mốc, đặt cách nhau càng xa càng tốt'};
+    const f = fitYawSimilarity(this.ds.map(m => m.P), this.ds.map(m => m.Q));
+    if (!f.ok) return f;
+    f.khoangCachMax = this.khoangCachXaNhat();
+    f.canhBao = this.canhBao();
+    return f;
+  },
+  khoangCachXaNhat(){
+    let xa = 0;
+    for (let i = 0; i < this.ds.length; i++)
+      for (let j = i+1; j < this.ds.length; j++)
+        xa = Math.max(xa, khoangCachNgang(this.ds[i].Q, this.ds[j].Q));
+    return xa;
+  },
+  /* Cảnh báo dựa trên hình dạng bộ mốc, KHÔNG dựa trên sai số khớp — vì với
+     đúng 2 mốc thì sai số khớp luôn bằng 0 và không nói lên điều gì. */
+  canhBao(){
+    const cb = [];
+    const n = this.ds.length;
+    if (n >= 2){
+      const xa = this.khoangCachXaNhat();
+      if (xa < MOC_RAT_GAN_M)
+        cb.push({muc:'nang', chu:'Hai mốc chỉ cách nhau ' + xa.toFixed(1) + ' m. Ở khoảng cách này '
+          + 'hướng tính ra sai hàng chục độ — mô hình sẽ lệch hàng chục mét ở xa. '
+          + 'Hãy đi xa hơn rồi cắm mốc thứ hai, ít nhất ' + MOC_MIN_M + ' m.'});
+      else if (xa < MOC_MIN_M)
+        cb.push({muc:'vua', chu:'Hai mốc cách nhau ' + xa.toFixed(1) + ' m, dưới mức khuyên dùng ('
+          + MOC_MIN_M + ' m). Càng xa thì hướng càng chính xác. Đo thử: 10 m cho lệch khoảng 2,6 m ở cự ly 30 m, '
+          + '20 m chỉ còn 1,6 m.'});
+    }
+    if (n === 2)
+      cb.push({muc:'vua', chu:'Đúng 2 mốc thì máy KHÔNG BIẾT mình sai bao nhiêu (vừa đủ ẩn số nên sai số '
+        + 'luôn hiện 0). Cắm thêm mốc thứ 3 ở chỗ khác thì mới có con số sai số thật — và mới phát hiện '
+        + 'được nếu bạn lỡ đứng nhầm cột.'});
+    return cb;
+  },
+};
+
+/* =====================================================================
+   HỒ SƠ MỐC — dùng lại mốc ở những lần mở app sau
+   =====================================================================
+   Mỗi mốc là một CẶP điểm: P trong mô hình, Q ngoài thực địa. Hai vế có
+   tuổi thọ hoàn toàn khác nhau, và đây là chỗ dễ hiểu nhầm nhất:
+
+     P (toạ độ trong mô hình)  — thuộc tính của FILE. Không bao giờ đổi.
+                                 LƯU LẠI ĐƯỢC, dùng mãi.
+     Q (toạ độ ARCore)         — gốc toạ độ ARCore được dựng MỚI mỗi lần mở
+                                 app, ngay tại chỗ máy đang đứng lúc đó.
+                                 Lần sau mở lại, con số cũ VÔ NGHĨA.
+
+   Tài liệu ARCore của Google ghi rõ: local anchor "chỉ có giá trị cho đúng
+   lần chạy đó của app". Muốn nhớ qua nhiều lần chạy thì phải dùng Cloud
+   Anchor — mà cái đó cần Internet, trái hẳn với mục tiêu offline của app này.
+
+   VẬY LƯU ĐƯỢC GÌ:
+     - tỷ lệ         -> thuộc tính file, đo MỘT LẦN là xong vĩnh viễn
+     - danh sách P   -> lần sau không phải dò tìm và chạm lại trên mô hình
+     - tên + ghi chú -> để nhận ra ngoài đời ("chân cột trục A/1")
+   KHÔNG lưu được: Q, góc quay, dịch chuyển — vì chúng gắn với thế giới
+   ARCore của buổi làm việc cũ, buổi đó đã kết thúc.
+
+   NÊN LẦN SAU: đi tới 2 mốc cũ, đứng đúng chỗ, bấm "Tôi đang ở đây". Không
+   phải chạm lại vào mô hình, không phải đo lại tỷ lệ, và chỉ cần 2 mốc thay
+   vì 3 (vì đã biết tỷ lệ nên bài toán còn 4 ẩn, 2 mốc đã dư bậc).
+   ===================================================================== */
+const HO_SO_VER = 1;
+const HoSoMoc = {
+  /* Khoá hồ sơ dùng CẢ tên lẫn số byte, giống hệt cách đặt khoá ghi chú —
+     hai file trùng tên nhưng khác nội dung không được lẫn mốc của nhau. */
+  khoa(r){ return r ? (r.name + '::' + r.sizeBytes) : ''; },
+  tao(r, tyLe, diem){
+    return {
+      ver: HO_SO_VER,
+      file: r ? r.name : '',
+      sizeBytes: r ? r.sizeBytes : 0,
+      tyLe: (tyLe > 0 && isFinite(tyLe)) ? tyLe : null,
+      luuLuc: new Date().toISOString().slice(0,16).replace('T',' '),
+      diem: (diem || []).map(m => ({ten: m.ten, P: m.P.slice(0,3), ghiChu: m.ghiChu || ''})),
+    };
+  },
+  json(r, tyLe, diem){ return JSON.stringify(this.tao(r, tyLe, diem), null, 2); },
+  /* Đọc hồ sơ đã lưu. Dữ liệu hỏng thì trả null chứ KHÔNG đẩy rác vào phép
+     khớp — mốc sai còn tệ hơn không có mốc. */
+  doc(json, r){
+    let d;
+    try { d = typeof json === 'string' ? JSON.parse(json) : json; } catch(_){ return null; }
+    if (!d || typeof d !== 'object') return null;
+    if (!Array.isArray(d.diem)) return null;
+    const hopLe = p => p && typeof p.ten === 'string' && Array.isArray(p.P) && p.P.length >= 3
+        && p.P.slice(0,3).every(v => typeof v === 'number' && isFinite(v));
+    const diem = d.diem.filter(hopLe).map(p => ({ten:p.ten, P:p.P.slice(0,3), ghiChu:String(p.ghiChu||'')}));
+    if (!diem.length) return null;
+    /* Hồ sơ của file KHÁC thì từ chối — nhận nhầm là lệch cả công trình mà
+       không ai hiểu vì sao. So bằng số byte vì tên file dễ bị đổi. */
+    if (r && d.sizeBytes && d.sizeBytes !== r.sizeBytes)
+      return {lechFile:true, file:d.file, diem, tyLe:null};
+    const tyLe = (typeof d.tyLe === 'number' && d.tyLe > 0 && isFinite(d.tyLe)) ? d.tyLe : null;
+    return {lechFile:false, file:d.file||'', diem, tyLe, luuLuc:d.luuLuc||''};
+  },
+};
+
+/* --- Đo tỷ lệ bằng một khoảng cách đã biết -----------------------------
+   Làm được NGAY TẠI VĂN PHÒNG, không cần AR, không cần ra công trường:
+   chạm hai điểm trong mô hình rồi gõ vào khoảng cách thật giữa chúng (bước
+   cột 8,0 m chẳng hạn). Thế là xong chuyện mét/feet/milimét vĩnh viễn cho
+   file đó, và ngoài hiện trường chỉ còn phải lo vị trí với hướng.        */
+function tinhTyLeTuKhoangCach(P1, P2, dThucM){
+  const ok = a => Array.isArray(a) && a.length >= 3 &&
+      a.slice(0,3).every(v => typeof v === 'number' && isFinite(v));
+  if (!ok(P1) || !ok(P2)) return {ok:false, why:'toạ độ hai điểm không hợp lệ'};
+  const d = Number(dThucM);
+  if (!(d > 0) || !isFinite(d)) return {ok:false, why:'khoảng cách thật phải là một số dương'};
+  const dMoHinh = Math.hypot(P2[0]-P1[0], P2[1]-P1[1], P2[2]-P1[2]);
+  if (!(dMoHinh > 1e-9)) return {ok:false, why:'hai điểm trùng nhau trong mô hình — hãy chọn hai điểm cách xa nhau'};
+  const s = d / dMoHinh;
+  const doanRa = doanDonViTuTyLe(s);
+  return {ok:true, s, dMoHinh, dThuc:d, donVi:doanRa.ten, khop:doanRa.khop,
+          why:doanRa.chu};
+}
+/* Đối chiếu tỷ lệ đo được với các đơn vị hay gặp. Sai số 3% là rộng rãi so
+   với việc chạm tay, mà vẫn hẹp hơn nhiều so với khoảng cách giữa các đơn vị
+   (mét và feet chênh nhau 228%) nên không thể nhầm lẫn. */
+const DON_VI_HAY_GAP = [
+  {ten:'mét',       s:1},
+  {ten:'feet',      s:0.3048},
+  {ten:'inch',      s:0.0254},
+  {ten:'centimét',  s:0.01},
+  {ten:'milimét',   s:0.001},
+];
+function doanDonViTuTyLe(s){
+  if (!(s > 0) || !isFinite(s)) return {ten:null, khop:false, chu:'tỷ lệ không hợp lệ'};
+  let tot = null, lechTot = Infinity;
+  for (const d of DON_VI_HAY_GAP){
+    const lech = Math.abs(s / d.s - 1);
+    if (lech < lechTot){ lechTot = lech; tot = d; }
+  }
+  if (lechTot <= 0.03)
+    return {ten:tot.ten, khop:true,
+            chu:'Khớp với đơn vị ' + tot.ten + ' (lệch ' + (lechTot*100).toFixed(1) + '%). '
+              + 'Từ giờ mô hình này dùng đúng tỷ lệ đó.'};
+  return {ten:tot.ten, khop:false,
+          chu:'Tỷ lệ đo được là ' + s.toPrecision(4) + ' m trên mỗi đơn vị file — không khớp sát đơn vị '
+            + 'chuẩn nào (gần nhất là ' + tot.ten + ', lệch ' + (lechTot*100).toFixed(0) + '%). '
+            + 'Kiểm lại xem có chạm đúng hai điểm không, và khoảng cách thật đã nhập đúng chưa.'};
+}
+
+const isOk = r => r.errors.length === 0;
+const sizeLabel = b => b/1024 < 1024 ? (b/1024).toFixed(0)+' KB' : (b/1048576).toFixed(1)+' MB';
+/* ================= HẾT PHẦN KIỂM TRA FILE ================= */
+
+
+/* =====================================================================
+   PHẦN 2 — GIAO DIỆN MÔ PHỎNG (theo lib/main.dart)
+   ===================================================================== */
+const $ = s => document.querySelector(s);
+const home = $('#home'), viewer = $('#viewer'), stage = $('#stage');
+const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+let pending = null, recent = [], blobs = new Map(), busy = false;
+
+function render(){
+  const tips = `<div class="tips"><b>Để chạy offline suôn sẻ</b>
+    Khi xuất .glb từ Revit, hãy TẮT mọi tuỳ chọn nén (Draco, KTX2, Meshopt) — các kiểu nén này
+    cần tải bộ giải mã từ Internet.<br><br>
+    Dùng .glb thay vì .gltf: .glb gói hình học và vật liệu vào 1 file duy nhất.<br><br>
+    Copy file vào bộ nhớ máy (ví dụ thư mục Download) rồi chọn từ đó.<br><br>
+    Model quá nặng nên tách theo tầng hoặc theo khu.</div>`;
+
+  const recentHtml = recent.length ? `<div class="recent"><h4>Mở lại gần đây</h4>` +
+    recent.map((m,i)=>`<div class="rowitem" data-r="${i}">
+      <span>${isOk(m)?'🧊':'⚠️'}</span>
+      <span class="nm">${esc(m.name)}</span>
+      <span class="sz">${sizeLabel(m.sizeBytes)}${isOk(m)?'':' · '+m.errors.length+' lỗi'}</span>
+      <span>›</span></div>`).join('') + `</div>` : '';
+
+  home.innerHTML = `
+    <div class="hero">
+      <div class="ic">🧊</div>
+      <h2>Xem mô hình 3D offline</h2>
+      <p>Chọn file .glb đã copy sẵn vào điện thoại. Sau khi đã có file, app không cần Internet.</p>
+    </div>
+    <div class="center">
+      <button class="btn" id="pick2" ${busy?'disabled':''}>📁 ${busy?'Đang kiểm tra file...':'Chọn file .glb'}</button>
+    </div>
+    <div class="drop" id="drop">hoặc kéo & thả file .glb vào đây</div>
+    ${pending ? reportCard(pending) : ''}
+    ${recentHtml}
+    ${tips}
+    <div style="height:20px"></div>`;
+
+  $('#pick2').onclick = () => $('#file').click();
+  const d = $('#drop');
+  d.ondragover = e => { e.preventDefault(); d.classList.add('on'); };
+  d.ondragleave = () => d.classList.remove('on');
+  d.ondrop = e => { e.preventDefault(); d.classList.remove('on');
+                    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); };
+  document.querySelectorAll('.rowitem').forEach(el =>
+    el.onclick = () => { pending = recent[+el.dataset.r]; render(); });
+  const ob = $('#openBtn'); if (ob) ob.onclick = () => openViewer(pending);
+}
+
+function reportCard(r){
+  const ok = isOk(r);
+  const list = (arr, cls, h) => arr.length ? `<div class="msg ${cls}"><div class="h">${h}</div>
+      <ul>${arr.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>` : '';
+  const kv = Object.entries(r.info).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('');
+  return `<div class="card">
+    <h3>${ok?'✅':'⛔'} ${ok?'File đọc được':'File có vấn đề'}</h3>
+    <p class="fname">${esc(r.name)} · ${sizeLabel(r.sizeBytes)}</p>
+    ${list(r.errors,'err','⛔ Nguyên nhân model sẽ không hiện')}
+    ${list(r.warnings,'warn','⚠️ Cần lưu ý')}
+    ${list(r.arNotes||[],'arn','📐 Phải xác nhận TRƯỚC khi cắm mốc ngoài công trường')}
+    <details><summary>Chi tiết kỹ thuật</summary><table class="kv">${kv}</table></details>
+    <div style="margin-top:12px">
+      <button class="btn block ${ok?'':'ghost'}" id="openBtn">
+        ${ok?'🧊 Xem mô hình':'▶ Vẫn thử xem (có thể trắng màn hình)'}</button>
+    </div></div>`;
+}
+
+async function handleFile(file){
+  busy = true; render();
+  const buf = await file.arrayBuffer();
+  const r = inspectModelBuffer(buf, file.name);
+  blobs.set(r.name, URL.createObjectURL(new Blob([buf], {type:'model/gltf-binary'})));
+  pending = r;
+  recent = recent.filter(x => x.name !== r.name); recent.unshift(r); recent = recent.slice(0,8);
+  busy = false; render();
+}
+
+/* =====================================================================
+   PHẦN 3 — GHI CHÚ / ĐÁNH DẤU VẤN ĐỀ TRÊN MÔ HÌNH
+   Chạm vào một điểm trên mô hình -> lấy toạ độ 3D bằng API chính thức của
+   model-viewer: positionAndNormalFromPoint(x, y) -> gắn 1 "hotspot" bám
+   dính vào đúng điểm đó (slot="hotspot-N", data-position, data-normal).
+   Ghi chú lưu kèm CẢ góc nhìn camera lúc tạo, nên bấm vào ghi chú là camera
+   bay đúng về khung hình cũ.
+   LƯU Ý: bản mô phỏng giữ ghi chú TRONG BỘ NHỚ phiên làm việc (không dùng
+   localStorage). Dùng nút "Xuất" để lưu ra file JSON/CSV. App thật sẽ lưu
+   thành file .json nằm cạnh file .glb nên không mất khi tắt app.
+   ===================================================================== */
+const noteData = new Map();
+const nkey = r => r.name + '::' + r.sizeBytes;
+const NoteStore = {
+  get(r){
+    if(!noteData.has(nkey(r))) noteData.set(nkey(r), {file:r.name, sizeBytes:r.sizeBytes, notes:[]});
+    return noteData.get(nkey(r));
+  },
+  add(r, note){
+    const d = this.get(r);
+    note.id = d.notes.reduce((m,n)=>Math.max(m,n.id),0) + 1;
+    d.notes.push(note); return note;
+  },
+  remove(r, id){ const d=this.get(r); d.notes = d.notes.filter(n=>n.id!==id); return d; },
+  count(r){ return this.get(r).notes.length; },
+  json(r){ return JSON.stringify(this.get(r), null, 2); },
+  csv(r){
+    const q = v => '"' + String(v==null?'':v).replace(/"/g,'""') + '"';
+    const SEV = {cao:'Cao', vua:'Trung bình', thap:'Thấp'};
+    return ['STT,Mức độ,Nội dung,Vị trí (x y z),Thời điểm',
+      ...this.get(r).notes.map(n =>
+        [n.id, SEV[n.severity]||n.severity, n.text, n.position, n.createdAt].map(q).join(','))
+    ].join('\n');
+  }
+};
+
+let markupOn = false, current = null;
+
+function download(name, text, mime){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type: mime}));
+  a.download = name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+}
+
+function openViewer(r){
+  pending = null; current = r; markupOn = false; pickMode = false; walkOn = false; matHidden.clear();
+  /* Doi file thi moi thu lien quan toi moc phai xoa sach — giu lai la lech
+     ca cong trinh ma khong ai hieu vi sao. Ho so cua file MOI se duoc nap
+     ngay ben duoi (neu co). */
+  MocMat.xoaHet(); canChinh = null; dangDungLai = null; tyLeDaDo = null;
+  mocMode = false; doTyLeMode = 0;
+  hoSoDaNap = null;
+  const hs = HoSoStore.doc(r);
+  if (hs) { const d = HoSoMoc.doc(hs, r); if (d && !d.lechFile) { hoSoDaNap = d;
+    if (d.tyLe) tyLeDaDo = {s:d.tyLe, donVi:(doanDonViTuTyLe(d.tyLe)||{}).ten}; } }
+  $('#title').textContent = r.name;
+  $('#btnClose').style.display = 'inline-block';
+  home.style.display = 'none'; viewer.style.display = 'flex';
+  const url = blobs.get(r.name);
+  stage.innerHTML = `
+    <model-viewer id="mv" src="${url}" alt="Mô hình BIM" camera-controls touch-action="pan-y"
+                  ar ar-modes="scene-viewer" style="width:100%;height:100%"></model-viewer>
+    <div class="hintbox" id="hint" style="display:none"><span style="float:right;cursor:pointer;opacity:.7;padding:0 2px" onclick="this.parentNode.remove()">✕</span>Nếu vẫn chưa thấy mô hình: bấm nút kiểm tra
+      ở góc dưới phải để xem kết quả phân tích file. Nguyên nhân hay gặp nhất là file .glb được xuất
+      kèm nén Draco — nén đó cần Internet để giải mã.</div>
+    <div class="fab">
+      <button id="btnInfo" title="Hiện lại thông tin file">ⓘ</button>
+      <button id="btnWalk">🚶 Đi bộ</button>
+      <button id="btnPickMode">👆 Chọn</button>
+      <button id="btnFilter">🎚️ Lọc</button>
+      <button id="btnMoc">📍 Cắm mốc (<span id="moccount">0</span>)</button>
+      <button id="btnTyLe">📏 Đo tỷ lệ</button>
+      <button id="btnQr">🔳 Mốc QR</button>
+      <button id="btnNotes">📋 Ghi chú (<span id="ncount">0</span>)</button>
+      <button id="btnMark" class="primary">✏️ Đánh dấu</button>
+    </div>
+    <div class="infobar">
+      <span>ℹ️</span>
+      <span style="flex:1"><span class="nm">${esc(r.name)}</span><br>
+        <span class="mt">${sizeLabel(r.sizeBytes)} · Offline · 1 ngón xoay, 2 ngón zoom</span></span>
+      <button class="btn ghost" style="padding:7px 12px;font-size:12px" id="backChk">Kiểm tra</button>
+    </div>`;
+  const showFallback = () => {
+    if (!stage.querySelector('model-viewer')) return;   // da doi man hinh khac
+    stage.insertAdjacentHTML('afterbegin',
+      `<div class="fallback"><div>Không tải được <code>&lt;model-viewer&gt;</code> từ CDN nên phần render 3D
+        không chạy trong bản mô phỏng này.<br><br>Đây là <b>giới hạn của bản mô phỏng</b>, không phải của
+        app thật — app thật đóng gói sẵn thư viện nên vẫn chạy offline. Bước kiểm tra file phía trước
+        vẫn hoạt động đầy đủ.</div></div>`);
+  };
+  if (!window.customElements) showFallback();
+  else if (!customElements.get('model-viewer')) {
+    let defined = false;
+    customElements.whenDefined('model-viewer').then(() => { defined = true; });
+    setTimeout(() => { if (!defined) showFallback(); }, 5000);
+  }
+  let loaded = false;
+  const mv = $('#mv');
+  if (mv) {
+    mv.addEventListener('load', () => {
+      loaded = true;
+      const h = $('#hint'); if (h) h.remove();
+      // (sửa theo phản hồi) Mô hình đã lên rồi thì KHÔNG còn lý do gì để nhắc
+      // "kiểm tra file" nữa -> thu gọn thanh thông tin sau 4 giây, nhường chỗ
+      // cho mô hình. Bấm nút ⓘ để hiện lại khi cần.
+      setTimeout(() => { const bar = stage.querySelector('.infobar');
+                         if (bar) bar.classList.add('hidden'); }, 4000);
+      showArStatus(mv);
+    });
+    mv.addEventListener('error', () => { const h=$('#hint'); if(h) h.style.display='block'; });
+    mv.addEventListener('click', onModelClick);
+  }
+  setTimeout(()=>{ const h=$('#hint'); if(h && !loaded) h.style.display='block'; }, 8000);
+  $('#backChk').onclick = () => { pending = r; closeViewer(); };
+  $('#btnMark').onclick = toggleMarkup;
+  $('#btnNotes').onclick = openNotesSheet;
+  $('#btnMoc').onclick = () => {
+    // Bam lan hai khi dang cho cham = huy, khong bat nguoi dung cham bua
+    if (mocMode || doTyLeMode > 0){ mocMode = false; doTyLeMode = 0; capNhatNutMoc(); return; }
+    if (MocMat.so() > 0) moBangMoc();
+    else if (hoSoDaNap) moBangDungLai();      // co ho so cu -> moi dung lai truoc
+    else batDauCamMoc();
+  };
+  $('#btnTyLe').onclick = batDauDoTyLe;
+  $('#btnQr').onclick = openQrSheet;
+  $('#btnFilter').onclick = openFilterSheet;
+  $('#btnPickMode').onclick = togglePick;
+  $('#btnWalk').onclick = toggleWalk;
+  $('#btnInfo').onclick = () => { const bar = stage.querySelector('.infobar');
+                                  if (bar) bar.classList.toggle('hidden'); };
+  refreshHotspots();
+}
+
+function toggleMarkup(){
+  markupOn = !markupOn;
+  if (markupOn && pickMode) togglePick();
+  $('#btnMark').classList.toggle('on', markupOn);
+  $('#btnMark').innerHTML = markupOn ? '✕ Thoát đánh dấu' : '✏️ Đánh dấu';
+  const old = $('#marktip'); if (old) old.remove();
+  if (markupOn) {
+    stage.insertAdjacentHTML('beforeend',
+      `<div class="marktip" id="marktip">Đang ở chế độ đánh dấu — chạm vào đúng bề mặt cần ghi chú
+       (tường, ống, dầm...). Chạm ra nền trống sẽ không ghi được.</div>`);
+  }
+}
+
+/* Lấy toạ độ 3D từ điểm chạm — API chính thức của model-viewer */
+function onModelClick(e){
+  if (!current) return;
+  // Cam moc / do ty le duoc uu tien hon moi che do khac: nguoi dung vua bam
+  // nut xong, cham tiep theo chac chan la de cam moc.
+  if (mocMode || doTyLeMode > 0){ onChamCamMoc(e); return; }
+  if (pickMode) return onPickClick(e);
+  if (!markupOn) return;
+  const mv = $('#mv');
+  if (!mv || typeof mv.positionAndNormalFromPoint !== 'function'){
+    alert('Chưa tải được model-viewer nên không lấy được toạ độ điểm chạm.'); return;
+  }
+  const rect = mv.getBoundingClientRect();
+  const hit = mv.positionAndNormalFromPoint(e.clientX - rect.left, e.clientY - rect.top);
+  if (!hit){
+    const t = $('#marktip');
+    if (t) t.textContent = 'Chỗ vừa chạm không trúng bề mặt mô hình — thử chạm vào đúng cấu kiện.';
+    return;
+  }
+  askNote(hit);
+}
+
+function askNote(hit){
+  const mv = $('#mv');
+  let orbit = '', target = '';
+  try { orbit  = mv.getCameraOrbit  ? mv.getCameraOrbit().toString()  : ''; } catch(_){}
+  try { target = mv.getCameraTarget ? mv.getCameraTarget().toString() : ''; } catch(_){}
+  showSheet(`
+    <h4>Ghi chú vấn đề</h4>
+    <div class="sevpick">
+      <label><input type="radio" name="sev" value="cao"><span>🔴 Cao</span></label>
+      <label><input type="radio" name="sev" value="vua" checked><span>🟠 Trung bình</span></label>
+      <label><input type="radio" name="sev" value="thap"><span>🔵 Thấp</span></label>
+    </div>
+    <textarea id="noteText" placeholder="Ví dụ: Ống gió va vào dầm, cần hạ cao độ 150mm"></textarea>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn ghost" style="flex:1" id="cancelNote">Huỷ</button>
+      <button class="btn" style="flex:1" id="saveNote">Lưu ghi chú</button>
+    </div>`, () => {
+      $('#cancelNote').onclick = hideSheet;
+      $('#saveNote').onclick = () => {
+        const text = ($('#noteText').value || '').trim();
+        if (!text){ $('#noteText').focus(); return; }
+        NoteStore.add(current, {
+          text,
+          severity: document.querySelector('input[name=sev]:checked').value,
+          position: hit.position ? hit.position.toString() : '',
+          normal:   hit.normal   ? hit.normal.toString()   : '',
+          cameraOrbit: orbit, cameraTarget: target,
+          createdAt: new Date().toISOString().slice(0,16).replace('T',' ')
+        });
+        hideSheet(); refreshHotspots();
+      };
+      setTimeout(()=>$('#noteText').focus(), 50);
+    });
+}
+
+function refreshHotspots(){
+  const mv = $('#mv'); if (!mv || !current) return;
+  [...mv.querySelectorAll('[slot^="hotspot-"]')].forEach(el => el.remove());
+  const d = NoteStore.get(current);
+  d.notes.forEach(n => {
+    const b = document.createElement('button');
+    b.slot = 'hotspot-' + n.id;
+    b.className = 'hotspot ' + n.severity;
+    b.textContent = n.id;
+    b.title = n.text;
+    if (n.position) b.dataset.position = n.position;
+    if (n.normal)   b.dataset.normal   = n.normal;
+    b.onclick = ev => { ev.stopPropagation(); openNotesSheet(n.id); };
+    mv.appendChild(b);
+  });
+  const c = $('#ncount'); if (c) c.textContent = d.notes.length;
+}
+
+function flyTo(n){
+  const mv = $('#mv'); if (!mv) return;
+  try {
+    if (n.cameraTarget) mv.cameraTarget = n.cameraTarget;
+    if (n.cameraOrbit)  mv.cameraOrbit  = n.cameraOrbit;
+  } catch(_){}
+  hideSheet();
+}
+
+function openNotesSheet(highlightId){
+  const d = NoteStore.get(current);
+  const SEV = {cao:'Cao', vua:'Trung bình', thap:'Thấp'};
+  const list = d.notes.length ? d.notes.map(n => `
+    <div class="note" ${n.id===highlightId?'style="border-color:#1a73e8;background:#f5f9ff"':''}>
+      <div class="top">
+        <span class="pill ${n.severity}">${n.id} · ${SEV[n.severity]}</span>
+        <span class="act">
+          <button data-fly="${n.id}">Bay tới</button>
+          <button data-del="${n.id}">Xoá</button>
+        </span>
+      </div>
+      <div>${esc(n.text)}</div>
+      <div class="meta">${esc(n.createdAt)} · vị trí ${esc(n.position || '—')}</div>
+    </div>`).join('')
+    : `<p style="color:#6b7480;font-size:13px">Chưa có ghi chú nào. Bấm <b>✏️ Đánh dấu</b> rồi chạm
+       vào điểm cần ghi trên mô hình.</p>`;
+  showSheet(`
+    <h4>Ghi chú (${d.notes.length})
+      <button class="btn ghost" style="margin-left:auto;padding:5px 11px;font-size:12px" id="closeSheet">Đóng</button>
+    </h4>
+    ${list}
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn ghost" style="flex:1" id="expJson" ${d.notes.length?'':'disabled'}>Xuất JSON</button>
+      <button class="btn ghost" style="flex:1" id="expCsv"  ${d.notes.length?'':'disabled'}>Xuất CSV (Excel)</button>
+    </div>`, () => {
+      $('#closeSheet').onclick = hideSheet;
+      const base = current.name.replace(/\.[^.]+$/, '');
+      const ej = $('#expJson'), ec = $('#expCsv');
+      if (ej) ej.onclick = () => download(base + '_ghichu.json', NoteStore.json(current), 'application/json');
+      if (ec) ec.onclick = () => download(base + '_ghichu.csv', '﻿' + NoteStore.csv(current), 'text/csv');
+      document.querySelectorAll('[data-fly]').forEach(b =>
+        b.onclick = () => flyTo(d.notes.find(n => n.id === +b.dataset.fly)));
+      document.querySelectorAll('[data-del]').forEach(b =>
+        b.onclick = () => { NoteStore.remove(current, +b.dataset.del); refreshHotspots(); openNotesSheet(); });
+    });
+}
+
+function showSheet(html, after){
+  hideSheet();
+  const el = document.createElement('div');
+  el.className = 'sheet'; el.id = 'sheet';
+  el.innerHTML = `<div class="inner">${html}</div>`;
+  el.onclick = ev => { if (ev.target === el) hideSheet(); };
+  viewer.appendChild(el);
+  if (after) after();
+}
+function hideSheet(){ stopScan(); const el = $('#sheet'); if (el) el.remove(); }
+
+function closeViewer(){
+  $('#title').textContent = 'BE 3D Site Viewer';
+  $('#btnClose').style.display = 'none';
+  viewer.style.display = 'none'; home.style.display = 'block';
+  hideSheet(); stage.innerHTML = ''; markupOn = false; current = null; render();
+}
+
+
+/* =====================================================================
+   PHẦN 4 — MỐC QR ĐỊNH VỊ  +  TRẠNG THÁI AR
+   =====================================================================
+   Ý tưởng: dán QR tại các điểm mốc có thật ngoài công trường (giao trục
+   A-1 tầng 3, cửa phòng kỹ thuật...). Nội dung QR ghi: tên file mô hình +
+   tên mốc + GÓC NHÌN CAMERA. Ra hiện trường quét QR -> app mở đúng file và
+   nhảy camera về đúng chỗ đó. Không cần AR, không cần ARCore, chạy offline.
+
+   LƯU Ý VỀ PHẠM VI (nói thẳng để không hiểu nhầm):
+   QR ở đây là "mốc góc nhìn", KHÔNG phải căn chỉnh mô hình khớp toạ độ thật
+   trong AR. Muốn AR khớp thật phải tự dựng phiên ARCore/ARKit riêng — không
+   làm được qua Scene Viewer vì ta bàn giao cho app của Google, không điều
+   khiển được điểm neo.
+
+   Phần MÃ HOÁ/GIẢI MÃ nội dung mốc dưới đây là code của ta, đã test đầy đủ.
+   Phần VẼ ẢNH QR thì dùng thư viện chuẩn (không tự viết bộ mã QR, vì trong
+   môi trường này không có thư viện nào để đối chiếu kiểm chứng).
+   ===================================================================== */
+
+const QR_PREFIX = 'BE3D', QR_VER = '2';
+/* v2 thêm 1 trường: GÓC BẮC — hướng yaw trong mô hình ứng với hướng bắc thật
+   ngoài công trường. Có nó thì khi bật la bàn, quay mặt về hướng nào ngoài đời
+   mô hình quay đúng hướng đó. Vẫn đọc được mốc v1 (không có góc bắc). */
+
+// Chỉ thoát 2 ký tự có thể phá cấu trúc: '%' rồi mới tới '|' (đúng thứ tự!)
+const qEsc = v => String(v == null ? '' : v).replace(/%/g, '%25').replace(/\|/g, '%7C');
+const qUnesc = v => String(v).replace(/%7C/g, '|').replace(/%25/g, '%');
+
+function encodeMarker(m){
+  return [QR_PREFIX, QR_VER, qEsc(m.file), qEsc(m.name),
+          qEsc(m.cameraOrbit), qEsc(m.cameraTarget),
+          qEsc(m.north == null ? '' : m.north)].join('|');
+}
+
+function decodeMarker(text){
+  if (typeof text !== 'string') return null;
+  const parts = String(text).trim().split('|');
+  if (parts[0] !== QR_PREFIX) return null;
+  const ver = parts[1];
+  if (ver !== '1' && ver !== '2') return null;
+  if (ver === '1' && parts.length !== 6) return null;
+  if (ver === '2' && parts.length !== 7) return null;
+  const m = {version: ver, file:qUnesc(parts[2]), name:qUnesc(parts[3]),
+             cameraOrbit:qUnesc(parts[4]), cameraTarget:qUnesc(parts[5]),
+             north: null};
+  if (ver === '2'){
+    const raw = qUnesc(parts[6]);
+    if (raw !== ''){
+      const v = Number(raw);
+      if (!isFinite(v)) return null;
+      m.north = ((v % 360) + 360) % 360;
+    }
+  }
+  if (!m.file) return null;
+  return m;
+}
+
+/* Vẽ ảnh QR bằng thư viện chuẩn. Nếu không tải được (bản mô phỏng không có
+   mạng) thì vẫn hiện NGUYÊN VĂN nội dung để copy — tính năng không chết. */
+function renderQrInto(el, text){
+  const lib = window.qrcode;               // qrcode-generator
+  if (typeof lib !== 'function'){
+    el.innerHTML = `<div style="color:#6b7480;font-size:12px;padding:14px;border:1px dashed #dde2e8;
+      border-radius:10px">Không tải được thư viện vẽ QR (bản mô phỏng cần mạng cho phần này).<br>
+      Nội dung mốc vẫn đầy đủ ở dưới — có thể copy sang trang tạo QR bất kỳ.</div>`;
+    return false;
+  }
+  try {
+    const qr = lib(0, 'M');                // tự chọn phiên bản, mức sửa lỗi M
+    qr.addData(text); qr.make();
+    el.innerHTML = qr.createImgTag(5, 8);
+    return true;
+  } catch(e){
+    el.innerHTML = `<div style="color:#c5221f;font-size:12px">Lỗi vẽ QR: ${esc(e.message)}</div>`;
+    return false;
+  }
+}
+
+function openQrSheet(){
+  const mv = $('#mv');
+  let orbit = '', target = '';
+  try { orbit  = mv.getCameraOrbit  ? mv.getCameraOrbit().toString()  : ''; } catch(_){}
+  try { target = mv.getCameraTarget ? mv.getCameraTarget().toString() : ''; } catch(_){}
+  showSheet(`
+    <h4>Mốc QR định vị
+      <button class="btn ghost" style="margin-left:auto;padding:5px 11px;font-size:12px" id="closeSheet">Đóng</button>
+    </h4>
+    <p style="font-size:12.5px;color:#6b7480;margin:0 0 10px">
+      Xoay mô hình về đúng khung hình của điểm mốc ngoài công trường, đặt tên rồi tạo QR.
+      Dán QR tại đúng điểm đó. Lần sau ra hiện trường, quét QR là camera nhảy về đúng khung hình này.</p>
+    <input id="mkName" placeholder="Tên mốc — ví dụ: Giao trục A-1, tầng 3"
+           style="width:100%;border:1px solid #dde2e8;border-radius:10px;padding:10px;font-family:inherit;font-size:13px">
+    <input id="mkNorth" type="number" placeholder="Góc bắc của mô hình (độ) — để trống nếu chưa biết"
+           style="width:100%;border:1px solid #dde2e8;border-radius:10px;padding:10px;margin-top:8px;font-family:inherit;font-size:13px">
+    <p style="font-size:11.5px;color:#6b7480;margin:6px 0 0">Góc bắc = hướng trong mô hình ứng với
+      hướng bắc thật ngoài công trường. Có nó thì la bàn mới xoay đúng hướng.</p>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn" style="flex:1" id="mkGen">Tạo mã QR</button>
+    </div>
+    <div id="qrOut"></div>
+    <hr style="border:0;border-top:1px solid #dde2e8;margin:16px 0">
+    <h4 style="font-size:14px">Quét mốc tại công trường</h4>
+    <button class="btn block" id="mkCam">📷 Bật camera quét QR</button>
+    <div class="scanbox" id="scanBox" style="display:none">
+      <video id="scanVid" muted playsinline></video><div class="frame"></div>
+    </div>
+    <p style="font-size:11.5px;color:#6b7480;margin:8px 0 0">Quét xong sẽ tự nhảy tới mốc và vào
+      chế độ đi bộ. Hoặc dán nội dung mốc bằng tay:</p>
+    <textarea id="mkScan" placeholder="BE3D|2|..." style="min-height:52px"></textarea>
+    <button class="btn ghost block" style="margin-top:8px" id="mkGo">Đi tới mốc</button>
+    <div id="scanMsg" style="font-size:12.5px;margin-top:8px"></div>`, () => {
+      $('#closeSheet').onclick = hideSheet;
+      $('#mkGen').onclick = () => {
+        const name = ($('#mkName').value || '').trim() || 'Mốc chưa đặt tên';
+        const nRaw = ($('#mkNorth').value || '').trim();
+        const payload = encodeMarker({file: current.name, name, cameraOrbit: orbit,
+                                      cameraTarget: target, north: nRaw === '' ? null : Number(nRaw)});
+        const out = $('#qrOut');
+        out.innerHTML = '<div class="qrbox" id="qrImg"></div>';
+        renderQrInto($('#qrImg'), payload);
+        out.insertAdjacentHTML('beforeend',
+          `<div class="payload" id="qrPayload">${esc(payload)}</div>
+           <button class="btn ghost block" style="margin-top:8px" id="qrCopy">Copy nội dung mốc</button>`);
+        $('#qrCopy').onclick = () => {
+          navigator.clipboard && navigator.clipboard.writeText(payload);
+          $('#qrCopy').textContent = 'Đã copy ✓';
+        };
+      };
+      $('#mkGo').onclick = () => handleScanned($('#mkScan').value, $('#scanMsg'));
+      $('#mkCam').onclick = () => {
+        const box = $('#scanBox'), msg = $('#scanMsg');
+        box.style.display = 'block';
+        startScan($('#scanVid'),
+          text => handleScanned(text, msg),
+          err  => { box.style.display = 'none';
+                    msg.innerHTML = '<span style="color:#e37400">' + esc(err) + '</span>'; });
+      };
+    });
+}
+
+/* Trạng thái AR: model-viewer cho biết máy/trình duyệt có bật được AR không */
+function showArStatus(mv){
+  const old = stage.querySelector('.chip'); if (old) old.remove();
+  let can = null;
+  try { can = mv.canActivateAR; } catch(_){}
+  const html = can
+    ? '<div class="chip ok" id="arChip">📱 AR sẵn sàng — bấm nút AR ở góc mô hình</div>'
+    : `<div class="chip" id="arChip">📱 Máy/trình duyệt này không hỗ trợ AR nên không có nút AR</div>`;
+  stage.insertAdjacentHTML('beforeend', html);
+  setTimeout(() => { const c = $('#arChip'); if (c) c.remove(); }, 7000);
+}
+
+
+/* =====================================================================
+   PHẦN 5 — LỌC HIỂN THỊ
+   =====================================================================
+   SỰ THẬT CẦN BIẾT TRƯỚC (đã kiểm chứng bằng chính bộ đọc file ở Phần 1):
+
+   File .glb KHÔNG nghiễm nhiên giữ Category / Workset / Family của Revit.
+   Chuẩn glTF chỉ có node, mesh, vật liệu — cộng thêm trường `extras` NẾU
+   add-in xuất chịu ghi vào. Bộ kiểm tra file sẽ nói rõ file của bạn có
+   `extras` hay không (mục "Có trường extras" trong Chi tiết kỹ thuật).
+
+   Thêm một giới hạn nữa của <model-viewer>: nó cho can thiệp VẬT LIỆU lúc
+   chạy (`model.materials`), nhưng KHÔNG cho ẩn/hiện từng node. Nên:
+
+     - Lọc theo VẬT LIỆU: làm được ngay, chính là phần dưới đây. Với model
+       xuất từ Revit thì vật liệu thường trùng khớp khá tốt với loại cấu kiện
+       (bê tông, thép, ống gió, ống nước...).
+     - Lọc theo Category / Workset / Family thật: cần đọc `extras` VÀ ẩn được
+       từng node -> phải đổi sang render bằng three.js trực tiếp thay vì
+       model-viewer. Đó là một bước lớn, nói rõ trước khi làm.
+   ===================================================================== */
+
+function setMaterialVisible(mv, idx, visible){
+  try {
+    const mats = mv.model && mv.model.materials;
+    const m = mats && mats[idx];
+    if (!m || !m.pbrMetallicRoughness) return false;
+    const pbr = m.pbrMetallicRoughness;
+    if (m.__origColor == null){
+      const c = pbr.baseColorFactor;
+      m.__origColor = c ? [...c] : [1,1,1,1];
+      m.__origAlphaMode = (typeof m.getAlphaMode === 'function') ? m.getAlphaMode() : 'OPAQUE';
+    }
+    const c = m.__origColor;
+    // Cách ẩn đã được kiểm chứng trên repo model-viewer: đặt AlphaMode 'MASK'
+    // rồi hạ alpha về 0 -> pixel bị loại thẳng, không sinh lỗi sắp xếp độ sâu
+    // như 'BLEND'. (Kiểu [0,0,0,-1] của bản cũ hơn đã hỏng từ v1.9.)
+    if (typeof m.setAlphaMode === 'function')
+      m.setAlphaMode(visible ? m.__origAlphaMode : 'MASK');
+    pbr.setBaseColorFactor(visible ? c : [c[0], c[1], c[2], 0]);
+    return true;
+  } catch(_){ return false; }
+}
+
+const matHidden = new Set();
+
+function openFilterSheet(){
+  const g = (current && current.groups) || {materials:[], extrasKeys:[], nodesWithExtras:0};
+  const mats = g.materials || [];
+  const cls = classifyExtras(g.extrasKeys);
+  const keyList = esc((g.extrasKeys || []).join(', ')) || '(không có)';
+  let note;
+  if (!g.nodesWithExtras) {
+    note = `<div class="msg warn"><div class="h">⚠️ File không có metadata</div>
+      Add-in xuất ra không ghi <code>extras</code>, nên không có Category, Workset hay Family để lọc.
+      Chỉ lọc được theo <b>vật liệu</b> ở dưới.</div>`;
+  } else if (cls.idOnly) {
+    note = `<div class="msg warn"><div class="h">⚠️ Chỉ có mã định danh, KHÔNG có Category/Workset</div>
+      File có <code>extras</code> trên ${g.nodesWithExtras} đối tượng, nhưng các khoá là:
+      <b>${keyList}</b> — toàn mã định danh của Revit, không có tên Category, Workset hay Family.
+      Nên <b>chưa lọc theo Category được</b>.<br><br>
+      Hai đường đi tiếp: (1) đổi/cấu hình add-in xuất glTF để nó ghi thêm Category, Workset, Family
+      vào <code>extras</code>; hoặc (2) xuất thêm 1 bảng Schedule từ Revit ra CSV có cột
+      <code>ElementId</code> + Category + Family + Workset, rồi app ghép theo
+      <code>elementId</code> sẵn có trong file này — cách (2) chạy offline và không cần đổi add-in.
+      </div>`;
+  } else {
+    const lbl = {category:'Category', workset:'Workset', family:'Family/Type', level:'Level'};
+    note = `<div class="msg warn"><div class="h">✅ File CÓ dữ liệu nhóm được</div>
+      Tìm thấy: <b>${cls.usable.map(k=>lbl[k]).join(', ')}</b> (khoá: ${keyList},
+      trên ${g.nodesWithExtras} đối tượng). Nhưng &lt;model-viewer&gt; không cho ẩn/hiện từng node,
+      nên muốn lọc đúng theo các nhóm này thì phải đổi sang render bằng three.js —
+      một bước lớn, cần bàn trước.</div>`;
+  }
+
+  const rows = mats.length ? mats.map(m => `
+    <label class="rowitem" style="cursor:pointer">
+      <input type="checkbox" data-mat="${m.index}" ${matHidden.has(m.index)?'':'checked'}>
+      <span class="nm">${esc(m.name)}</span>
+    </label>`).join('')
+    : `<p style="font-size:13px;color:#6b7480">File không khai báo vật liệu nào nên không có gì để lọc.</p>`;
+
+  showSheet(`
+    <h4>Lọc hiển thị
+      <button class="btn ghost" style="margin-left:auto;padding:5px 11px;font-size:12px" id="closeSheet">Đóng</button>
+    </h4>
+    ${note}
+    <div style="display:flex;gap:8px;margin:12px 0">
+      <button class="btn ghost" style="flex:1" id="allOn">Hiện tất cả</button>
+      <button class="btn ghost" style="flex:1" id="allOff">Tắt tất cả</button>
+    </div>
+    ${rows}
+    <div id="filtMsg" style="font-size:12px;color:#6b7480;margin-top:10px"></div>`, () => {
+      $('#closeSheet').onclick = hideSheet;
+      const mv = $('#mv');
+      const apply = (idx, visible) => {
+        if (visible) matHidden.delete(idx); else matHidden.add(idx);
+        const ok = setMaterialVisible(mv, idx, visible);
+        if (!ok) $('#filtMsg').textContent =
+          'Chưa tải được model-viewer nên chưa áp dụng được lên hình — lựa chọn vẫn được ghi nhớ.';
+      };
+      document.querySelectorAll('[data-mat]').forEach(cb =>
+        cb.onchange = () => apply(+cb.dataset.mat, cb.checked));
+      $('#allOn').onclick  = () => document.querySelectorAll('[data-mat]').forEach(cb => {
+        cb.checked = true;  apply(+cb.dataset.mat, true); });
+      $('#allOff').onclick = () => document.querySelectorAll('[data-mat]').forEach(cb => {
+        cb.checked = false; apply(+cb.dataset.mat, false); });
+    });
+}
+
+
+/* =====================================================================
+   PHẦN 6 — CHẠM VÀO CẤU KIỆN ĐỂ ẨN / CHỈ HIỆN (kiểu "Select Similar")
+   =====================================================================
+   Dùng API chính thức `materialFromPoint(x, y)` của model-viewer: chạm vào
+   một chỗ trên mô hình -> nó trả về VẬT LIỆU của cấu kiện tại đó.
+
+   NÓI THẲNG VỀ GIỚI HẠN, để không hiểu nhầm:
+   model-viewer chỉ cho can thiệp ở mức VẬT LIỆU, không cho ẩn/hiện từng
+   node. Nên khi bạn chạm vào một cấu kiện rồi bấm "Ẩn", nó sẽ ẩn LUÔN mọi
+   cấu kiện dùng chung vật liệu đó — tức là bản chất nó ĐÃ là "similar" rồi,
+   không tách riêng được một mình cấu kiện vừa chạm.
+
+   Muốn ẩn ĐÚNG MỘT cấu kiện vừa chỉ vào thì phải đổi lõi hiển thị sang
+   three.js trực tiếp (khi đó mới chạm được tới từng node/mesh riêng).
+   ===================================================================== */
+
+let pickMode = false;
+
+function togglePick(){
+  pickMode = !pickMode;
+  const btn = $('#btnPickMode');
+  if (btn){
+    btn.classList.toggle('on', pickMode);
+    btn.textContent = pickMode ? '✕ Thoát chọn' : '👆 Chọn';
+  }
+  if (pickMode && markupOn) toggleMarkup();
+  if (pickMode && walkOn) toggleWalk();
+  const old = $('#marktip'); if (old) old.remove();
+  if (pickMode){
+    stage.insertAdjacentHTML('beforeend',
+      `<div class="marktip" id="marktip" style="background:#1a73e8">Chạm vào một cấu kiện để ẩn nó,
+       hoặc chỉ hiện riêng nhóm của nó.</div>`);
+  }
+}
+
+function materialIndexAt(mv, e){
+  if (typeof mv.materialFromPoint !== 'function') return {err:'nofn'};
+  const rect = mv.getBoundingClientRect();
+  // dùng chung bộ quét dung sai với tâm ngắm: chạm tay lệch vài pixel vẫn trúng
+  const mat = pickWithTolerance(mv, e.clientX - rect.left, e.clientY - rect.top);
+  if (!mat) return {err:'miss'};
+  const mats = (mv.model && mv.model.materials) || [];
+  let idx = mats.indexOf(mat);
+  if (idx < 0 && mat.name != null) idx = mats.findIndex(m => m && m.name === mat.name);
+  if (idx < 0) return {err:'noidx'};
+  return {idx, name: mat.name || ('Vật liệu ' + idx)};
+}
+
+function onPickClick(e){
+  const mv = $('#mv');
+  const tip = $('#marktip');
+  const hit = materialIndexAt(mv, e);
+  if (hit.err === 'nofn'){
+    if (tip) tip.textContent = 'Chưa tải được model-viewer nên chưa chạm chọn được cấu kiện.';
+    return;
+  }
+  if (hit.err === 'miss'){
+    if (tip) tip.textContent = 'Chỗ vừa chạm không trúng cấu kiện nào — thử chạm vào đúng vật thể.';
+    return;
+  }
+  if (hit.err === 'noidx'){
+    if (tip) tip.textContent = 'Không xác định được vật liệu của cấu kiện vừa chạm.';
+    return;
+  }
+  openPickSheet(hit);
+}
+
+function applyVisibility(){
+  const mv = $('#mv');
+  const mats = (current && current.groups && current.groups.materials) || [];
+  mats.forEach(m => setMaterialVisible(mv, m.index, !matHidden.has(m.index)));
+}
+
+function hideGroup(idx){ matHidden.add(idx); applyVisibility(); }
+function isolateGroup(idx){
+  const mats = (current && current.groups && current.groups.materials) || [];
+  matHidden.clear();
+  mats.forEach(m => { if (m.index !== idx) matHidden.add(m.index); });
+  applyVisibility();
+}
+function showAllGroups(){ matHidden.clear(); applyVisibility(); }
+
+function openPickSheet(hit){
+  const hidden = matHidden.has(hit.idx);
+  showSheet(`
+    <h4>Cấu kiện vừa chạm
+      <button class="btn ghost" style="margin-left:auto;padding:5px 11px;font-size:12px" id="closeSheet">Đóng</button>
+    </h4>
+    <div class="note" style="border-color:#1a73e8;background:#f5f9ff">
+      <div class="top"><span class="pill thap">Vật liệu</span></div>
+      <div style="font-weight:600">${esc(hit.name)}</div>
+      <div class="meta">Mọi cấu kiện dùng chung vật liệu này được coi là cùng nhóm.</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+      <button class="btn" id="pkHide">${hidden ? '👁 Hiện lại nhóm này' : '🚫 Ẩn nhóm này'}</button>
+      <button class="btn ghost" id="pkIso">🎯 Chỉ hiện riêng nhóm này</button>
+      <button class="btn ghost" id="pkAll">↺ Hiện lại tất cả</button>
+    </div>
+    <p style="font-size:11.5px;color:#6b7480;margin-top:12px">
+      Lưu ý: model-viewer chỉ can thiệp được ở mức vật liệu, nên thao tác này áp dụng cho cả nhóm
+      cùng vật liệu — đúng kiểu "select similar". Muốn ẩn riêng đúng một cấu kiện thì phải đổi lõi
+      hiển thị sang three.js.</p>`, () => {
+      $('#closeSheet').onclick = hideSheet;
+      $('#pkHide').onclick = () => {
+        if (matHidden.has(hit.idx)) { matHidden.delete(hit.idx); applyVisibility(); }
+        else hideGroup(hit.idx);
+        hideSheet();
+      };
+      $('#pkIso').onclick = () => { isolateGroup(hit.idx); hideSheet(); };
+      $('#pkAll').onclick = () => { showAllGroups(); hideSheet(); };
+    });
+}
+
+
+/* =====================================================================
+   PHẦN 7 — CHẾ ĐỘ ĐI BỘ (kiểu Walk của Navisworks) + TÂM NGẮM
+   =====================================================================
+   VÌ SAO CÓ PHẦN NÀY: chạm tay vào đúng cấu kiện trên màn hình nhỏ trượt
+   rất nhiều — cấu kiện mảnh, ngón tay to, và một cái vuốt nhẹ bị hiểu thành
+   xoay camera chứ không phải chạm. Navisworks không bắt người dùng chạm: nó
+   cho NGẮM BẰNG TÂM MÀN HÌNH rồi bấm nút. Đây làm y vậy.
+
+   CÁCH DỰNG CAMERA NGƯỜI ĐI BỘ TRÊN MODEL-VIEWER:
+   model-viewer chỉ có camera kiểu quỹ đạo: `camera-target` (điểm nhìn) +
+   `camera-orbit` (theta, phi, radius). Vị trí camera nằm ở:
+       cam = target + radius * (sin φ·sin θ, cos φ, sin φ·cos θ)
+   Muốn đặt MẮT tại điểm P và nhìn theo hướng ngang ψ, ngẩng/cúi p, ta đặt:
+       target = P + d · look,  với look = (sin ψ·cos p, −sin p, cos ψ·cos p)
+       orbit  = (ψ + 180°, 90° − p, d)
+   Thay vào công thức trên sẽ ra đúng cam = P. Phép biến đổi này là toán
+   thuần nên được TEST BẰNG SỐ: dựng camera từ trạng thái đi bộ, rồi tính
+   ngược vị trí camera theo đúng công thức của model-viewer và đối chiếu.
+
+   GIỚI HẠN, nói trước: KHÔNG có va chạm và trọng lực như Navisworks — bạn
+   sẽ đi xuyên tường và không tự bám sàn. Làm được va chạm cần bắn tia từng
+   bước, mà model-viewer chỉ cho bắn tia từ điểm trên MÀN HÌNH, không cho bắn
+   tia tuỳ ý trong không gian. Đó là việc của bản three.js sau này.
+   ===================================================================== */
+
+const DEG = Math.PI / 180;
+const EYE_DEFAULT = 1.6;          // chiều cao mắt (m)
+/* ---- LA BÀN: quy đổi hướng thiết bị -> hướng nhìn trong mô hình ----
+   deviceHeading: 0..360, 0 = thiết bị đang hướng về BẮC THẬT.
+   north: yaw trong mô hình ứng với hướng bắc thật (lấy từ mốc QR v2).
+   Hai hàm này là toán thuần nên test được bằng số; phần bắt sự kiện cảm biến
+   chỉ là lớp mỏng bọc ngoài, cần thử trên máy thật. */
+function headingToYaw(deviceHeading, north){
+  const n = Number(north) || 0;
+  const h = Number(deviceHeading) || 0;
+  return ((n + h) % 360 + 360) % 360;
+}
+function tiltToPitch(beta, invert){
+  // beta = 90 -> cầm dựng đứng, nhìn ngang. beta nhỏ dần -> camera sau chếch lên.
+  // Nếu cảm biến trả về giá trị hỏng thì phải về NHÌN NGANG (0), chứ không
+  // được rơi về 0 độ nghiêng rồi thành ngửa mặt lên trần 80 độ.
+  // Number(null) = 0 nên phải loại null/undefined/'' RIÊNG, nếu không thiếu
+  // cảm biến sẽ bị hiểu thành "máy nằm ngửa" rồi ngửa mặt lên trần.
+  if (beta == null || beta === '') return 0;
+  const b0 = Number(beta);
+  if (!isFinite(b0)) return 0;
+  let p = 90 - b0;
+  if (invert) p = -p;
+  if (p > 180) p -= 360; if (p < -180) p += 360;
+  return Math.max(-80, Math.min(80, p));
+}
+
+let walkOn = false;
+let compassOn = false, compassInvert = false, modelNorth = 0;
+let walk = null;                  // {x,y,z,yaw,pitch,d,step}
+
+function walkCamera(st){
+  const p = st.pitch * DEG, y = st.yaw * DEG;
+  // pitch DƯƠNG = NGẨNG LÊN (look.y > 0). Kéo theo góc phi của quỹ đạo phải là
+  // 90 + pitch chứ không phải 90 − pitch. Phép kiểm chứng "tính ngược vị trí
+  // camera" vẫn phải khớp sau khi đổi.
+  const look = {x: Math.sin(y)*Math.cos(p), y: Math.sin(p), z: Math.cos(y)*Math.cos(p)};
+  const n = v => Math.abs(v) < 1e-9 ? 0 : v;
+  return {
+    orbit:  `${n(st.yaw + 180)}deg ${n(90 + st.pitch)}deg ${n(st.d)}m`,
+    target: `${n(st.x + st.d*look.x)}m ${n(st.y + st.d*look.y)}m ${n(st.z + st.d*look.z)}m`,
+    look,
+  };
+}
+
+function walkMove(st, dir, step){
+  const s = step == null ? st.step : step;
+  const y = st.yaw * DEG;
+  const fwd  = {x: Math.sin(y),            z: Math.cos(y)};
+  const right= {x: Math.sin(y + 90*DEG),   z: Math.cos(y + 90*DEG)};
+  const o = {...st};
+  if (dir === 'forward'){ o.x += fwd.x*s;   o.z += fwd.z*s; }
+  if (dir === 'back')   { o.x -= fwd.x*s;   o.z -= fwd.z*s; }
+  if (dir === 'right')  { o.x += right.x*s; o.z += right.z*s; }
+  if (dir === 'left')   { o.x -= right.x*s; o.z -= right.z*s; }
+  if (dir === 'up')     { o.y += s; }
+  if (dir === 'down')   { o.y -= s; }
+  if (dir === 'turnL')  { o.yaw = (o.yaw - 15 + 360) % 360; }
+  if (dir === 'turnR')  { o.yaw = (o.yaw + 15) % 360; }
+  if (dir === 'lookU')  { o.pitch = Math.min(80, o.pitch + 10); }
+  if (dir === 'lookD')  { o.pitch = Math.max(-80, o.pitch - 10); }
+  return o;
+}
+
+/* Tính NGƯỢC vị trí camera theo đúng công thức của model-viewer — chỉ dùng
+   để tự kiểm chứng phép biến đổi ở trên. */
+function cameraPosFromOrbit(target, orbit){
+  const t = String(target).match(/-?[\d.]+/g).map(Number);
+  const o = String(orbit).match(/-?[\d.]+/g).map(Number);
+  const [th, ph, r] = [o[0]*DEG, o[1]*DEG, o[2]];
+  return {x: t[0] + r*Math.sin(ph)*Math.sin(th),
+          y: t[1] + r*Math.cos(ph),
+          z: t[2] + r*Math.sin(ph)*Math.cos(th)};
+}
+
+function applyWalk(){
+  const mv = $('#mv'); if (!mv || !walk) return;
+  const c = walkCamera(walk);
+  try { mv.cameraTarget = c.target; mv.cameraOrbit = c.orbit; } catch(_){}
+  const hud = $('#hud');
+  if (hud) hud.innerHTML =
+    `X ${walk.x.toFixed(1)}  Y ${walk.y.toFixed(1)}  Z ${walk.z.toFixed(1)}<br>` +
+    `hướng ${Math.round(walk.yaw)}°  ngẩng ${Math.round(walk.pitch)}°  bước ${walk.step}m`;
+}
+
+function toggleWalk(){
+  walkOn = !walkOn;
+  if (walkOn){ if (markupOn) toggleMarkup(); if (pickMode) togglePick(); }
+  const mv = $('#mv');
+  ['#walkPad','#walkBar','#hud','#cross'].forEach(id => { const e=$(id); if(e) e.remove(); });
+  const btn = $('#btnWalk');
+  if (btn){ btn.classList.toggle('on', walkOn); btn.textContent = walkOn ? '✕ Thoát đi bộ' : '🚶 Đi bộ'; }
+  // (sửa theo ảnh chụp) Bảng nút đi bộ nằm cùng góc với dãy nút chính nên đè
+  // lên nhau. Vào chế độ đi bộ thì giấu hết nút không liên quan, chỉ chừa nút
+  // thoát — giống Navisworks khi vào Walk là màn hình gọn lại.
+  stage.querySelectorAll('.fab button').forEach(b => { b.style.display = walkOn ? 'none' : ''; });
+  const bar = stage.querySelector('.infobar');
+  if (bar) bar.classList.toggle('hidden', walkOn);
+  if (!walkOn){
+    stopCompass();
+    if (mv) mv.removeAttribute('min-camera-orbit');
+    return;
+  }
+  // điểm đứng ban đầu: giữ nguyên điểm camera đang nhìn, hạ về cao độ mắt
+  // Giữ nguyên HƯỚNG đang nhìn khi bước vào chế độ đi bộ — nếu không, quét mốc
+  // xong sẽ bị quay về hướng 0 độ và mất luôn hướng nhìn đã lưu trong mốc.
+  // Quan hệ đã dựng ở walkCamera: theta = yaw + 180, phi = 90 + pitch.
+  let t = [0,0,0], o = [180, 90, 1];
+  try { t = String(mv.getCameraTarget()).match(/-?[\d.]+/g).map(Number); } catch(_){}
+  try { o = String(mv.getCameraOrbit()).match(/-?[\d.]+/g).map(Number); } catch(_){}
+  const yaw0 = ((o[0] - 180) % 360 + 360) % 360;
+  const pitch0 = Math.max(-80, Math.min(80, o[1] - 90));
+  walk = {x:t[0], y:(t[1] || 0) + EYE_DEFAULT, z:t[2], yaw:yaw0, pitch:pitch0, d:1, step:1};
+  try { mv.setAttribute('min-camera-orbit', 'auto auto 0.1m'); } catch(_){}
+  stage.insertAdjacentHTML('beforeend', `
+    <div class="cross" id="cross"><i class="h"></i><i class="v"></i><b></b></div>
+    <div class="hud" id="hud"></div>
+    <div class="pad" id="walkPad">
+      <button class="sp"></button><button data-w="forward">▲</button><button class="sp"></button>
+      <button data-w="left">◀</button><button data-w="back">▼</button><button data-w="right">▶</button>
+      <button data-w="turnL">↺</button><button data-w="down">▼▼</button><button data-w="turnR">↻</button>
+    </div>
+    <div class="walkbar" id="walkBar">
+      <button id="walkExit" style="background:#c5221f;color:#fff">✕ Thoát đi bộ</button>
+      <button data-w="lookU">Ngẩng ▲</button>
+      <button data-w="lookD">Cúi ▼</button>
+      <button data-w="up">Lên cao ▲</button>
+      <button id="walkStep">Bước 1m</button>
+      <button id="walkCompass">🧭 La bàn: tắt</button>
+      <button class="go" id="walkPick">🎯 Chọn tại tâm ngắm</button>
+    </div>`);
+  stage.querySelectorAll('[data-w]').forEach(b =>
+    b.onclick = () => { walk = walkMove(walk, b.dataset.w); applyWalk(); });
+  $('#walkStep').onclick = () => {
+    walk.step = walk.step >= 5 ? 0.25 : (walk.step >= 1 ? 5 : 1);
+    $('#walkStep').textContent = 'Bước ' + walk.step + 'm'; applyWalk();
+  };
+  $('#walkPick').onclick = pickAtCrosshair;
+  $('#walkExit').onclick = toggleWalk;
+  $('#walkCompass').onclick = toggleCompass;
+  updateCompassBtn();
+  applyWalk();
+}
+
+/* ---- NGẮM TÂM MÀN HÌNH thay vì chạm ngón tay ---- */
+/* Bắn thêm vài tia quanh điểm ngắm: cấu kiện mảnh thì trúng ngay giữa rất
+   khó, lệch vài pixel là trượt. Quét theo vòng xoắn từ tâm ra. */
+function pickWithTolerance(mv, lx, ly, r){
+  r = r || 12;
+  const ring = [[0,0]];
+  for (const d of [r, r*2])
+    for (const a of [0, 45, 90, 135, 180, 225, 270, 315])
+      ring.push([Math.round(d*Math.cos(a*DEG)), Math.round(d*Math.sin(a*DEG))]);
+  for (const [dx,dy] of ring){
+    let m = null;
+    try { m = mv.materialFromPoint(lx+dx, ly+dy); } catch(_){ return null; }
+    if (m) return m;
+  }
+  return null;
+}
+
+function pickAtCrosshair(){
+  const mv = $('#mv'); if (!mv) return;
+  if (typeof mv.materialFromPoint !== 'function'){
+    const h=$('#hud'); if(h) h.textContent = 'Chưa tải được model-viewer nên chưa chọn được.'; return;
+  }
+  const rect = mv.getBoundingClientRect();
+  const mat = pickWithTolerance(mv, rect.width/2, rect.height/2);
+  const cross = $('#cross');
+  if (!mat){
+    if (cross){ cross.classList.remove('hit'); }
+    const h=$('#hud'); if(h) h.innerHTML += '<br>Tâm ngắm chưa trúng cấu kiện nào.';
+    return;
+  }
+  if (cross) cross.classList.add('hit');
+  const mats = (mv.model && mv.model.materials) || [];
+  let idx = mats.indexOf(mat);
+  if (idx < 0 && mat.name != null) idx = mats.findIndex(m => m && m.name === mat.name);
+  if (idx < 0) return;
+  openPickSheet({idx, name: mat.name || ('Vật liệu ' + idx)});
+}
+
+
+/* =====================================================================
+   PHẦN 8 — LA BÀN (xoay theo hướng thiết bị) + QUÉT QR BẰNG CAMERA
+   =====================================================================
+   LA BÀN: nghe sự kiện hướng thiết bị rồi quy đổi sang hướng nhìn trong mô
+   hình bằng headingToYaw / tiltToPitch (toán thuần, đã test bằng số).
+   Cần GÓC BẮC của mô hình — lấy từ mốc QR v2. Không có góc bắc thì vẫn xoay
+   được nhưng hướng bắc mô hình coi như trùng bắc thật.
+
+   iOS 13+ bắt xin quyền cảm biến bằng một cú chạm của người dùng, và trang
+   phải chạy HTTPS. Đã xử lý; nhưng chỉ máy thật mới xác nhận được.
+
+   QUÉT QR: dùng BarcodeDetector có sẵn trong Chrome/WebView Android — không
+   cần thư viện, chạy offline. Máy không có thì báo rõ và vẫn cho dán tay.
+   ===================================================================== */
+
+function updateCompassBtn(){
+  const b = $('#walkCompass'); if (!b) return;
+  b.textContent = '🧭 La bàn: ' + (compassOn ? 'BẬT' : 'tắt');
+  b.style.background = compassOn ? '#188038' : '';
+  b.style.color = compassOn ? '#fff' : '';
+}
+
+let _compassHandler = null;
+function stopCompass(){
+  if (_compassHandler){
+    window.removeEventListener('deviceorientationabsolute', _compassHandler);
+    window.removeEventListener('deviceorientation', _compassHandler);
+    _compassHandler = null;
+  }
+  compassOn = false; updateCompassBtn();
+}
+
+/* Nhận số đo hướng thiết bị -> đổi hướng nhìn. Tách riêng để test được. */
+function onDeviceOrientation(ev){
+  if (!compassOn || !walk) return;
+  // iOS cho hướng la bàn thật qua webkitCompassHeading; chuẩn W3C thì alpha
+  // của 'deviceorientationabsolute' là góc so với bắc, tính ngược chiều.
+  let heading = null;
+  if (typeof ev.webkitCompassHeading === 'number') heading = ev.webkitCompassHeading;
+  else if (typeof ev.alpha === 'number') heading = 360 - ev.alpha;
+  if (heading == null) return;
+  walk.yaw   = headingToYaw(heading, modelNorth);
+  walk.pitch = tiltToPitch(ev.beta, compassInvert);
+  applyWalk();
+}
+
+async function toggleCompass(){
+  if (compassOn){ stopCompass(); return; }
+  try {
+    const D = window.DeviceOrientationEvent;
+    if (!D){ alert('Máy/trình duyệt này không có cảm biến hướng.'); return; }
+    if (typeof D.requestPermission === 'function'){   // iOS 13+
+      const res = await D.requestPermission();
+      if (res !== 'granted'){ alert('Bạn chưa cho phép dùng cảm biến hướng.'); return; }
+    }
+    _compassHandler = onDeviceOrientation;
+    window.addEventListener('deviceorientationabsolute', _compassHandler, true);
+    window.addEventListener('deviceorientation', _compassHandler, true);
+    compassOn = true; updateCompassBtn();
+  } catch(e){ alert('Không bật được la bàn: ' + e.message); }
+}
+
+/* ---------- Quét QR bằng camera ---------- */
+let _scanStop = null;
+
+function stopScan(){
+  if (_scanStop){ try { _scanStop(); } catch(_){} _scanStop = null; }
+}
+
+async function startScan(videoEl, onFound, onErr){
+  if (!('BarcodeDetector' in window)){
+    onErr('Trình duyệt này không có sẵn bộ đọc mã vạch. Trên điện thoại Android '
+        + 'thì có. Ở đây bạn dán nội dung mốc bằng tay ở ô dưới.');
+    return;
+  }
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+  } catch(e){ onErr('Không mở được camera: ' + e.message); return; }
+  videoEl.srcObject = stream; videoEl.setAttribute('playsinline',''); await videoEl.play();
+  const det = new BarcodeDetector({formats:['qr_code']});
+  let alive = true;
+  _scanStop = () => { alive = false; stream.getTracks().forEach(t=>t.stop()); };
+  const tick = async () => {
+    if (!alive) return;
+    try {
+      const codes = await det.detect(videoEl);
+      if (codes && codes.length){ stopScan(); onFound(codes[0].rawValue); return; }
+    } catch(_){}
+    if (alive) requestAnimationFrame(tick);
+  };
+  tick();
+}
+
+/* Xử lý nội dung quét được — tách riêng khỏi camera để test được đầy đủ.
+   Đây chính là mắt xích nối cả quy trình: quét -> nhảy tới mốc -> vào chế độ
+   đi bộ -> nạp góc bắc cho la bàn. */
+function handleScanned(text, msgEl){
+  const m = decodeMarker(text);
+  const say = h => { if (msgEl) msgEl.innerHTML = h; };
+  if (!m){ say('<span style="color:#c5221f">Nội dung không phải mốc BE3D hợp lệ.</span>'); return false; }
+  if (m.file !== current.name){
+    say(`<span style="color:#e37400">Mốc này thuộc file <b>${esc(m.file)}</b>, không phải file đang mở.
+         Hãy mở đúng file rồi quét lại.</span>`);
+    return false;
+  }
+  modelNorth = (m.north == null) ? 0 : m.north;
+  flyTo({cameraOrbit:m.cameraOrbit, cameraTarget:m.cameraTarget});   // hàm này tự đóng bảng
+  if (!walkOn) toggleWalk();                                          // vào thẳng chế độ đi bộ
+  const hud = $('#hud');
+  if (hud) hud.innerHTML += `<br>Đã tới mốc: ${esc(m.name || '(không tên)')}`
+        + (m.north == null ? '<br>Mốc chưa có góc bắc — la bàn coi bắc mô hình = bắc thật.' : '');
+  return true;
+}
+
+$('#btnPick').onclick = () => $('#file').click();
+$('#btnClose').onclick = closeViewer;
+$('#file').onchange = e => { if (e.target.files[0]) handleFile(e.target.files[0]); e.target.value=''; };
+
+/* ---------- file mẫu tạo ngay trong trình duyệt ---------- */
+function buildGlb(gltfObj, binBytes = 0, {magicOk = true, version = 2, truncate = 0} = {}){
+  const enc = new TextEncoder();
+  let js = enc.encode(JSON.stringify(gltfObj));
+  const padJ = (4 - js.length % 4) % 4;
+  const jsPad = new Uint8Array(js.length + padJ); jsPad.set(js); jsPad.fill(0x20, js.length);
+  const binLen = binBytes ? binBytes + ((4 - binBytes % 4) % 4) : 0;
+  const total = 12 + 8 + jsPad.length + (binLen ? 8 + binLen : 0);
+  const out = new Uint8Array(total); const dv = new DataView(out.buffer);
+  dv.setUint32(0, magicOk ? GLB_MAGIC : 0x11111111, true);
+  dv.setUint32(4, version, true); dv.setUint32(8, total, true);
+  dv.setUint32(12, jsPad.length, true); dv.setUint32(16, CHUNK_JSON, true);
+  out.set(jsPad, 20);
+  if (binLen){
+    const off = 20 + jsPad.length;
+    dv.setUint32(off, binLen, true); dv.setUint32(off+4, CHUNK_BIN, true);
+  }
+  return truncate ? out.slice(0, out.length - truncate) : out;
+}
+/* =====================================================================
+   PHẦN 10 — GIAO DIỆN CẮM MỐC BẰNG MẮT
+   =====================================================================
+   Ba việc, tách hẳn nhau:
+     A. ĐO TỶ LỆ  — chạm 2 điểm + gõ khoảng cách thật. Làm ở văn phòng được,
+                    không cần AR. Xong là hết chuyện mét/feet.
+     B. CẮM MỐC   — đứng tại điểm nhận ra được, chạm đúng điểm đó trên mô
+                    hình. Lặp lại ở chỗ thứ hai cách ít nhất 20 m.
+     C. BẮT ĐẦU   — khớp xong thì vào chế độ đi bộ, camera do thiết bị lái.
+
+   TRONG BẢN MÔ PHỎNG không có ARCore, nên toạ độ "thực địa" được GIẢ LẬP từ
+   một phép biến đổi bí mật cộng nhiễu 40 cm — đúng mức sai số của việc chỉ
+   tay. Nhờ vậy người dùng thấy được vì sao khoảng cách giữa hai mốc lại quan
+   trọng đến thế, mà không phải ra công trường mới biết.
+   App thật chỉ thay đúng một hàm: nguonToaDoThucDia().
+   ===================================================================== */
+let mocMode = false;          // đang chờ người dùng chạm để cắm mốc
+let doTyLeMode = 0;           // 0 = tắt, 1 = chờ điểm 1, 2 = chờ điểm 2
+let doTyLeP1 = null;
+let tyLeDaDo = null;          // {s, donVi} sau khi đo xong
+let canChinh = null;          // kết quả khớp đang dùng
+
+/* --- Nguồn toạ độ thực địa ------------------------------------------
+   App thật: trả về vị trí thiết bị do ARCore cung cấp (mét, Y hướng lên).
+   Bản mô phỏng: dựng một "thế giới thật" bí mật để người dùng thử được cả
+   quy trình. Nhiễu 40 cm là mức đo được của việc đứng cạnh cột rồi chỉ tay. */
+const GIA_LAP = {sThat: 1, yawThat: 47, t: [123.4, 0, -56.7], nhieu: 0.40};
+let _hatGiaLap = 20260814;
+function _nnGiaLap(){
+  _hatGiaLap = (_hatGiaLap * 1103515245 + 12345) & 0x7fffffff;
+  return _hatGiaLap / 0x7fffffff;
+}
+function _chuanGiaLap(){
+  let s = 0; for (let i=0;i<6;i++) s += _nnGiaLap();
+  return (s - 3) / Math.sqrt(0.5);
+}
+function nguonToaDoThucDia(P){
+  if (window.BE3D_ARCORE && typeof window.BE3D_ARCORE.viTri === 'function')
+    return window.BE3D_ARCORE.viTri();            // app thật cắm vào đây
+  const g = GIA_LAP, c = Math.cos(g.yawThat*DEG), si = Math.sin(g.yawThat*DEG);
+  const r = [P[0]*c + P[2]*si, P[1], -P[0]*si + P[2]*c];
+  return [g.sThat*r[0] + g.t[0] + _chuanGiaLap()*g.nhieu,
+          g.sThat*r[1] + g.t[1] + _chuanGiaLap()*g.nhieu*0.3,
+          g.sThat*r[2] + g.t[2] + _chuanGiaLap()*g.nhieu];
+}
+
+function toaDoTuChamMoHinh(e){
+  const mv = $('#mv');
+  if (!mv || typeof mv.positionAndNormalFromPoint !== 'function') return null;
+  const rect = mv.getBoundingClientRect();
+  const hit = mv.positionAndNormalFromPoint(e.clientX - rect.left, e.clientY - rect.top);
+  if (!hit || !hit.position) return null;
+  const s = hit.position.toString().trim().split(/\s+/).map(v => parseFloat(v));
+  return s.length >= 3 && s.every(v => isFinite(v)) ? s.slice(0,3) : null;
+}
+
+function onChamCamMoc(e){
+  const P = toaDoTuChamMoHinh(e);
+  const tip = $('#moctip');
+  if (!P){
+    if (tip) tip.textContent = 'Chỗ vừa chạm không trúng bề mặt mô hình — chạm vào đúng cấu kiện (chân cột, sàn, tường).';
+    return false;
+  }
+  if (doTyLeMode === 1){
+    doTyLeP1 = P;
+    doTyLeMode = 2;
+    if (tip) tip.textContent = 'Đã ghi điểm 1. Giờ chạm ĐIỂM THỨ HAI mà bạn biết khoảng cách thật tới điểm 1.';
+    return true;
+  }
+  if (doTyLeMode === 2){
+    doTyLeMode = 0;
+    capNhatNutMoc();
+    hoiKhoangCachThat(doTyLeP1, P);
+    return true;
+  }
+  if (mocMode){
+    const Q = nguonToaDoThucDia(P);
+    const m = MocMat.them(P, Q);
+    mocMode = false;
+    capNhatNutMoc();
+    moBangMoc(m);
+    return true;
+  }
+  return false;
+}
+
+function capNhatNutMoc(){
+  const b = $('#btnMoc');
+  if (b){
+    const dangCho = mocMode || doTyLeMode > 0;
+    b.classList.toggle('on', dangCho);
+    b.innerHTML = dangCho ? '✕ Huỷ chạm' : '📍 Cắm mốc (<span id="moccount">' + MocMat.so() + '</span>)';
+  }
+  const t = $('#moctip');
+  if (!mocMode && doTyLeMode === 0 && t) t.remove();
+}
+
+function hienTipMoc(chu){
+  const cu = $('#moctip'); if (cu) cu.remove();
+  stage.insertAdjacentHTML('beforeend', `<div class="marktip" id="moctip">${esc(chu)}</div>`);
+}
+
+/* --- A. Đo tỷ lệ bằng khoảng cách đã biết ---------------------------- */
+function hoiKhoangCachThat(P1, P2){
+  const dMoHinh = Math.hypot(P2[0]-P1[0], P2[1]-P1[1], P2[2]-P1[2]);
+  showSheet(`
+    <h4>Khoảng cách thật giữa hai điểm
+      <button class="btn ghost" style="margin-left:auto;padding:5px 11px;font-size:12px" id="closeSheet">Đóng</button>
+    </h4>
+    <p style="font-size:13px;color:#6b7480;margin:0 0 10px">
+      Trong file, hai điểm vừa chạm cách nhau <b>${dMoHinh.toFixed(3)}</b> đơn vị.
+      Ngoài đời thật chúng cách nhau bao nhiêu MÉT?</p>
+    <input class="inp" id="dThuc" type="number" step="0.001" placeholder="ví dụ 8.0" inputmode="decimal">
+    <p style="font-size:11.5px;color:#6b7480;margin:8px 0 0">
+      Nên chọn khoảng cách càng lớn càng tốt và biết chắc: bước cột, chiều dài gian, khoảng cách hai trục.
+      Không nên lấy chiều cao cửa vì sai vài cm là lệch nhiều phần trăm.</p>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn" id="dOk">Tính tỷ lệ</button>
+    </div>
+    <div id="dKq"></div>`, () => {
+      $('#closeSheet').onclick = hideSheet;
+      $('#dOk').onclick = () => {
+        const kq = tinhTyLeTuKhoangCach(P1, P2, $('#dThuc').value);
+        const el = $('#dKq');
+        if (!kq.ok){ el.innerHTML = `<div class="msg err" style="margin-top:12px"><div class="h">Chưa tính được</div>${esc(kq.why)}</div>`; return; }
+        tyLeDaDo = {s: kq.s, donVi: kq.donVi};
+        el.innerHTML = `<div class="msg ${kq.khop?'arn':'warn'}" style="margin-top:12px">
+          <div class="h">${kq.khop ? '✅ Đã đo xong tỷ lệ' : '⚠️ Tỷ lệ lạ'}</div>
+          1 đơn vị trong file = <b>${kq.s.toPrecision(5)}</b> m.<br>${esc(kq.why)}</div>`;
+      };
+    });
+}
+
+/* --- B0. Kho hồ sơ mốc trong bộ nhớ ------------------------------------
+   Cùng khuôn mẫu với NoteStore để lớp cầu nối của app Flutter bọc được y hệt
+   cách nó bọc ghi chú — ít chỗ mới là ít chỗ sai. App thật ghi xuống đĩa. */
+const hoSoData = new Map();
+const HoSoStore = {
+  luu(r, tyLe, diem){
+    const j = HoSoMoc.json(r, tyLe, diem);
+    hoSoData.set(HoSoMoc.khoa(r), j);
+    return j;
+  },
+  doc(r){ return hoSoData.get(HoSoMoc.khoa(r)) || null; },
+  xoa(r){ hoSoData.delete(HoSoMoc.khoa(r)); },
+};
+let hoSoDaNap = null;      // hồ sơ của file đang mở, nếu có
+let dangDungLai = null;    // {diem:[...], daXacNhan:[{P,Q,ten}]}
+
+/* App thật gọi hàm này sau khi mở mô hình để trả lại hồ sơ đã lưu trên đĩa. */
+function napHoSoMoc(json){
+  if (!current) return 0;
+  const d = HoSoMoc.doc(json, current);
+  if (!d) return 0;
+  hoSoData.set(HoSoMoc.khoa(current), typeof json === 'string' ? json : JSON.stringify(json));
+  hoSoDaNap = d;
+  if (d.tyLe) tyLeDaDo = {s: d.tyLe, donVi: (doanDonViTuTyLe(d.tyLe)||{}).ten};
+  capNhatNutMoc();
+  return d.diem.length;
+}
+window.BE3D_napHoSoMoc = napHoSoMoc;
+
+/* --- B1. Dùng lại mốc đã lưu ------------------------------------------ */
+function moBangDungLai(){
+  const h = hoSoDaNap;
+  if (!h){ moBangMoc(); return; }
+  if (!dangDungLai) dangDungLai = {daXacNhan: []};
+  const daCo = id => dangDungLai.daXacNhan.some(x => x.ten === id);
+
+  const ds = h.diem.map((m,i) => `
+    <div class="note" style="${daCo(m.ten)?'border-color:#188038;background:#f2fbf5':''}">
+      <div class="top"><span class="pill ${daCo(m.ten)?'thap':'vua'}">${esc(m.ten)}</span>
+        ${daCo(m.ten)
+          ? '<span style="margin-left:auto;font-size:12px;color:#188038;font-weight:600">✓ đã xác nhận</span>'
+          : `<button class="btn" style="margin-left:auto;padding:5px 11px;font-size:12px"
+                     data-here="${i}">Tôi đang ở đây</button>`}</div>
+      ${m.ghiChu ? `<div class="meta">${esc(m.ghiChu)}</div>` : ''}
+      <div class="meta">trong mô hình: ${m.P.map(v=>v.toFixed(2)).join('  ')}</div>
+    </div>`).join('');
+
+  let kq = '';
+  const n = dangDungLai.daXacNhan.length;
+  if (n >= 2 && h.tyLe){
+    const f = khopVoiTyLeCoSan(dangDungLai.daXacNhan.map(x=>x.P),
+                               dangDungLai.daXacNhan.map(x=>x.Q), h.tyLe);
+    if (f.ok){
+      const q = alignQuality(f);
+      canChinh = f;
+      kq = `<div class="msg ${q.level==='tot'?'arn':(q.level==='sai'?'err':'warn')}" style="margin-top:12px">
+          <div class="h">Đã căn lại xong</div>
+          Dùng tỷ lệ đã đo từ trước: <b>1 đơn vị = ${h.tyLe.toPrecision(5)} m</b><br>
+          Hướng xoay: <b>${f.yawDeg.toFixed(1)}°</b><br>${esc(q.text)}
+        </div>
+        <button class="btn block" id="mocGo" style="margin-top:12px">🚶 Bắt đầu đi theo thiết bị</button>`;
+    } else {
+      kq = `<div class="msg err" style="margin-top:12px">${esc(f.why)}</div>`;
+    }
+  } else if (n >= 2 && !h.tyLe){
+    kq = `<div class="msg warn" style="margin-top:12px">Hồ sơ này chưa có tỷ lệ (lần trước chưa đo).
+      Cần xác nhận đủ <b>3 mốc</b>, hoặc bấm 📏 Đo tỷ lệ một lần cho xong hẳn.</div>`;
+    if (n >= 3){
+      const f = fitYawSimilarity(dangDungLai.daXacNhan.map(x=>x.P), dangDungLai.daXacNhan.map(x=>x.Q));
+      if (f.ok){
+        canChinh = f;
+        kq += `<div class="msg arn" style="margin-top:10px">Đã căn bằng ${n} mốc · 1 đơn vị =
+          <b>${f.s.toPrecision(5)} m</b> · ${esc(alignQuality(f).text)}</div>
+          <button class="btn block" id="mocGo" style="margin-top:12px">🚶 Bắt đầu đi theo thiết bị</button>`;
+      }
+    }
+  } else {
+    kq = `<div class="msg warn" style="margin-top:12px">Đã xác nhận ${n} mốc.
+      ${h.tyLe ? 'Cần <b>2 mốc</b> là đủ vì tỷ lệ đã biết từ lần trước.'
+               : 'Hồ sơ chưa có tỷ lệ nên cần <b>3 mốc</b>.'}</div>`;
+  }
+
+  showSheet(`
+    <h4>Dùng lại mốc đã lưu
+      <button class="btn ghost" style="margin-left:auto;padding:5px 11px;font-size:12px" id="closeSheet">Đóng</button>
+    </h4>
+    <p style="font-size:13px;color:#6b7480;margin:0 0 10px">
+      Lưu ${h.luuLuc ? 'lúc ' + esc(h.luuLuc) : 'từ lần trước'}.
+      ${h.tyLe ? '<b>Tỷ lệ đã biết</b> nên chỉ cần đi tới <b>2 mốc</b>.' : ''}
+      Đi tới đúng chỗ ngoài đời rồi bấm <b>Tôi đang ở đây</b> — không phải chạm lại vào mô hình.</p>
+    ${ds}
+    ${kq}
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <button class="btn ghost" id="dlLamLai">↺ Xác nhận lại từ đầu</button>
+      <button class="btn ghost" id="dlMocMoi">📍 Cắm mốc mới thay vì dùng lại</button>
+    </div>`, () => {
+      $('#closeSheet').onclick = hideSheet;
+      $('#dlLamLai').onclick = () => { dangDungLai = {daXacNhan: []}; canChinh = null; moBangDungLai(); };
+      $('#dlMocMoi').onclick = () => { hideSheet(); batDauCamMoc(); };
+      document.querySelectorAll('[data-here]').forEach(b => b.onclick = () => {
+        const m = h.diem[Number(b.dataset.here)];
+        dangDungLai.daXacNhan.push({ten:m.ten, P:m.P.slice(0,3), Q:nguonToaDoThucDia(m.P)});
+        moBangDungLai();
+      });
+      const go = $('#mocGo');
+      if (go) go.onclick = () => { hideSheet(); vaoDiTheoThietBi(); };
+    });
+}
+
+/* --- B. Bảng mốc ------------------------------------------------------ */
+function moBangMoc(vuaThem){
+  const f = MocMat.khop();
+  const q = f.ok ? alignQuality(f) : null;
+  const ds = MocMat.ds.map(m => {
+    const gan = MocMat.ds.filter(x => x.id !== m.id)
+        .map(x => khoangCachNgang(m.Q, x.Q)).sort((a,b)=>a-b)[0];
+    return `<div class="note" style="${vuaThem && m.id===vuaThem.id ? 'border-color:#188038;background:#f2fbf5' : ''}">
+      <div class="top"><span class="pill ${m.id===((vuaThem||{}).id)?'thap':'vua'}">${esc(m.ten)}</span>
+        <button class="btn ghost" style="margin-left:auto;padding:4px 9px;font-size:11px"
+                data-xoa="${m.id}">Xoá</button></div>
+      <div class="meta">trong mô hình: ${m.P.map(v=>v.toFixed(2)).join('  ')}
+        ${gan!=null?`<br>cách mốc gần nhất: <b>${gan.toFixed(1)} m</b>`:''}</div>
+    </div>`;
+  }).join('');
+
+  let kq = '';
+  if (f.ok){
+    const cb = (f.canhBao||[]).map(c =>
+      `<div class="msg ${c.muc==='nang'?'err':'warn'}" style="margin-top:10px">${esc(c.chu)}</div>`).join('');
+    kq = `<div class="msg ${q.level==='tot'?'arn':(q.level==='sai'?'err':'warn')}" style="margin-top:12px">
+        <div class="h">Kết quả căn chỉnh</div>
+        Tỷ lệ: <b>1 đơn vị file = ${f.s.toPrecision(5)} m</b> (${esc((doanDonViTuTyLe(f.s)||{}).ten||'?')})<br>
+        Hướng xoay: <b>${f.yawDeg.toFixed(1)}°</b><br>
+        Hai mốc xa nhau nhất: <b>${(f.khoangCachMax||0).toFixed(1)} m</b><br>
+        ${esc(q.text)}
+      </div>${cb}
+      <button class="btn block" id="mocGo" style="margin-top:12px">🚶 Bắt đầu đi theo thiết bị</button>`;
+  } else {
+    kq = `<div class="msg warn" style="margin-top:12px">${esc(f.why)}</div>`;
+  }
+
+  showSheet(`
+    <h4>Mốc đã cắm (${MocMat.so()})
+      <button class="btn ghost" style="margin-left:auto;padding:5px 11px;font-size:12px" id="closeSheet">Đóng</button>
+    </h4>
+    ${ds || '<p style="font-size:13px;color:#6b7480">Chưa có mốc nào.</p>'}
+    ${kq}
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <button class="btn ghost" id="mocThem">➕ Cắm thêm mốc</button>
+      ${MocMat.so() >= 2 ? '<button class="btn ghost" id="mocLuu">💾 Lưu để lần sau dùng lại</button>' : ''}
+      <button class="btn ghost" id="mocXoaHet">↺ Xoá hết</button>
+    </div>
+    <div id="mocLuuKq"></div>
+    <p style="font-size:11.5px;color:#6b7480;margin-top:12px">
+      Đo được từ mô phỏng: hai mốc cách nhau 20 m thì cấu kiện ở cự ly 30 m bị đặt lệch khoảng 1,6 m;
+      cách nhau 2 m thì lệch tới 11 m. Mốc thứ ba gần như không làm chính xác hơn, nhưng nó là thứ duy
+      nhất cho biết mình đang sai bao nhiêu.</p>`, () => {
+      $('#closeSheet').onclick = hideSheet;
+      $('#mocThem').onclick = () => { hideSheet(); batDauCamMoc(); };
+      $('#mocXoaHet').onclick = () => { MocMat.xoaHet(); canChinh = null; capNhatNutMoc(); moBangMoc(); };
+      document.querySelectorAll('[data-xoa]').forEach(b => b.onclick = () => {
+        MocMat.xoa(Number(b.dataset.xoa)); capNhatNutMoc(); moBangMoc();
+      });
+      const go = $('#mocGo');
+      if (go) go.onclick = () => { canChinh = MocMat.khop(); hideSheet(); vaoDiTheoThietBi(); };
+      const luu = $('#mocLuu');
+      if (luu) luu.onclick = () => {
+        /* Ty le uu tien lay tu phep khop (do bang chinh cac moc nay) — no
+           dang tin hon so do bang mot khoang cach duy nhat. */
+        const f = MocMat.khop();
+        const s = (f.ok && f.s > 0) ? f.s : (tyLeDaDo ? tyLeDaDo.s : null);
+        HoSoStore.luu(current, s, MocMat.ds);
+        hoSoDaNap = HoSoMoc.doc(HoSoStore.doc(current), current);
+        const el = $('#mocLuuKq');
+        if (el) el.innerHTML = `<div class="msg arn" style="margin-top:10px">
+          <div class="h">Đã lưu ${MocMat.so()} mốc${s ? ' và tỷ lệ ' + s.toPrecision(5) + ' m/đơn vị' : ''}</div>
+          Lần sau mở lại file này, chỉ cần đi tới <b>${s ? '2' : '3'} mốc</b> rồi bấm
+          “Tôi đang ở đây” — không phải chạm lại vào mô hình${s ? ', không phải đo lại tỷ lệ' : ''}.
+          <br><br>Nên đặt tên mốc theo mốc thật ngoài đời (“chân cột trục A/1”) để lần sau tìm lại được.
+        </div>`;
+      };
+    });
+}
+
+function batDauCamMoc(){
+  mocMode = true; doTyLeMode = 0;
+  capNhatNutMoc();
+  hienTipMoc('Đứng tại một điểm bạn nhận ra được ngoài đời (chân cột, giao trục, góc phòng), '
+    + 'rồi chạm ĐÚNG điểm đó trên mô hình. Mốc thứ hai nên cách đây ít nhất 20 m.');
+}
+
+function batDauDoTyLe(){
+  doTyLeMode = 1; mocMode = false; doTyLeP1 = null;
+  capNhatNutMoc();
+  hienTipMoc('Chạm ĐIỂM THỨ NHẤT trên mô hình — chọn hai điểm mà bạn biết chắc khoảng cách thật giữa chúng.');
+}
+
+/* --- C. Vào chế độ đi theo thiết bị ---------------------------------- */
+function vaoDiTheoThietBi(){
+  if (!canChinh || !canChinh.ok) return;
+  /* THỨ TỰ QUAN TRỌNG: toggleWalk() tự dựng lại biến `walk` từ camera hiện
+     tại, nên phải vào chế độ đi bộ TRƯỚC rồi mới đặt vị trí. Làm ngược lại
+     thì vị trí vừa đặt bị ghi đè và người dùng đứng sai chỗ mà không hiểu
+     vì sao. */
+  if (!walkOn) toggleWalk();
+  const cuoi = MocMat.ds[MocMat.ds.length - 1];
+  if (cuoi && walk){
+    // Cao độ mắt 1,6 m thật -> đổi sang đơn vị của file bằng tỷ lệ vừa đo.
+    walk.x = cuoi.P[0];
+    walk.y = cuoi.P[1] + 1.6 / canChinh.s;
+    walk.z = cuoi.P[2];
+    applyWalk();
+  }
+  const h = $('#hud');
+  if (h) h.innerHTML = 'Đã căn theo ' + MocMat.so() + ' mốc · 1 đơn vị = '
+    + canChinh.s.toPrecision(4) + ' m · ' + esc(alignQuality(canChinh).text);
+
+  /* NÓI THẲNG GIỚI HẠN CỦA BẢN MÔ PHỎNG. Trình duyệt không có ARCore nên
+     phần DI CHUYỂN theo bước chân chưa chạy được ở đây — chỉ app thật (có
+     plugin ARCore) mới làm được. Phần XOAY thì la bàn của điện thoại làm
+     được ngay. Không nói ra thì người dùng tưởng tính năng hỏng. */
+  if (!(window.BE3D_ARCORE && typeof window.BE3D_ARCORE.viTri === 'function'))
+    hienTipMoc('Đã đứng đúng vị trí mốc trong mô hình. Trong bản mô phỏng, phần DI CHUYỂN theo bước '
+      + 'chân cần ARCore nên chưa chạy — hãy dùng nút hướng. Phần XOAY thì bật 🧭 La bàn là chạy được '
+      + 'ngay trên điện thoại.');
+}
+
+const BASE = {asset:{version:'2.0', generator:'revit-glTF-exporter 1.2'},
+  scenes:[{nodes:[0]}], nodes:[{mesh:0}],
+  meshes:[{primitives:[{attributes:{POSITION:0}}]}], materials:[{}], textures:[]};
+const SAMPLES = {
+  ok:    ['mau_hop_le.glb',      () => buildGlb(BASE, 4096)],
+  draco: ['mau_draco.glb',       () => buildGlb({...BASE, extensionsRequired:['KHR_draco_mesh_compression']}, 512)],
+  ktx2:  ['mau_ktx2.glb',        () => buildGlb({...BASE, extensionsRequired:['KHR_texture_basisu']}, 512)],
+  nomesh:['mau_khong_mesh.glb',  () => buildGlb({asset:{version:'2.0'}, scenes:[], nodes:[]})],
+  cut:   ['mau_bi_cat.glb',      () => buildGlb(BASE, 4096, {truncate: 3000})],
+  notglb:['mau_khong_phai.bin',  () => new Uint8Array([0x50,0x4B,3,4, ...Array.from({length:300},(_,i)=>(i*37)&255)])]
+};
+document.querySelectorAll('.samples button').forEach(b => b.onclick = () => {
+  const [nm, gen] = SAMPLES[b.dataset.s];
+  handleFile(new File([gen()], nm));
+});
+
+render();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script src="qrcode.min.js"></script>
+<!-- Ưu tiên bản đặt CẠNH file HTML (chạy offline hoàn toàn ngoài công trường).
+     Không có thì mới lấy từ mạng. Xem hướng dẫn trong file kèm theo. -->
+<script type="module" src="model-viewer.min.js"
+        onerror="import('https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js')
+                 .catch(()=>{})"></script>
+</body>
+</html>

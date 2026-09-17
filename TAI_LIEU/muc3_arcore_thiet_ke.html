@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BE 3D Site Viewer — MỨC 3 (ARCore/ARKit): thiết kế tính tới mọi trường hợp</title>
+<style>
+  :root{--ink:#0f1720;--mut:#6b7480;--line:#e4e8ee;--bg:#f5f7fa;--card:#fff;
+        --red:#c62828;--amber:#b26a00;--green:#1b7a3d;--blue:#1d4fa0;--purple:#6b3fa0}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+  .wrap{max-width:1080px;margin:0 auto;padding:28px 20px 80px}
+  h1{font-size:26px;margin:0 0 6px;letter-spacing:-.4px}
+  h2{font-size:20px;margin:36px 0 12px;padding-top:18px;border-top:2px solid var(--line)}
+  h3{font-size:16px;margin:24px 0 8px}
+  .sub{color:var(--mut);margin:0 0 22px;font-size:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:14px 0}
+  .card.hi{border-color:#b9cef0;background:#eef4fd}
+  .card.warn{border-color:#f6d9a4;background:#fef6e7}
+  .card.bad{border-color:#f5b7b4;background:#fdecea}
+  .card.good{border-color:#b6ddc2;background:#eef8f1}
+  .card h3{margin-top:0}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;margin:10px 0 4px;background:#fff}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#f0f3f7;font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.3px;color:#495260}
+  td.c{text-align:center;white-space:nowrap}
+  code{background:#f0f3f7;padding:1px 5px;border-radius:4px;font-size:12.5px;
+       font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  pre{background:#0f1720;color:#e8eef5;padding:14px 16px;border-radius:10px;overflow-x:auto;
+      font-size:12.5px;line-height:1.55}
+  pre code{background:none;color:inherit;padding:0}
+  .b{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;
+     letter-spacing:.3px;white-space:nowrap}
+  .b.xong{background:#e3f4e8;color:var(--green)}
+  .b.co{background:#e6eefb;color:var(--blue)}
+  .b.chua{background:#fdecea;color:var(--red)}
+  .b.do{background:#fdf1dc;color:var(--amber)}
+  .b.kt{background:#f0e8fa;color:var(--purple)}
+  ul,ol{margin:8px 0 8px 22px;padding:0}
+  li{margin:5px 0}
+  .lead{font-size:16px}
+  .kbd{font-weight:700}
+  .note{font-size:13px;color:var(--mut)}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:760px){
+    .split{grid-template-columns:1fr}
+    .wrap{padding:18px 14px 60px}
+    /* Bảng nhiều cột trên điện thoại: cho cuộn ngang thay vì tràn ra ngoài
+       màn hình (tràn thì mất chữ mà không có cách nào đọc lại). */
+    table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:normal}
+    table tbody, table thead{display:table;width:100%;min-width:640px}
+    th,td{padding:7px 8px}
+    th[style]{width:auto!important}
+    pre{font-size:11.5px}
+    code{word-break:break-word}
+    h1{font-size:21px} h2{font-size:18px}
+  }
+  .num{font-variant-numeric:tabular-nums}
+  hr{border:0;border-top:1px solid var(--line);margin:22px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>MỨC 3 — Mô hình đi theo bước chân bằng ARCore / ARKit</h1>
+<p class="sub">Thiết kế chi tiết · BE 3D Site Viewer · bản 1.0 · 14/08/2026<br>
+Viết theo yêu cầu <em>“chúng ta cần tính tới mọi trường hợp”</em>.</p>
+
+<div class="card bad">
+<h3>Đọc mục này trước — ba điều đã kiểm tra được và nó đổi cả thiết kế</h3>
+<ol>
+<li><b>Google nói thẳng: KHÔNG dùng mã QR làm ảnh mốc cho ARCore.</b> Tài liệu Augmented Images
+ghi rõ nên tránh ảnh “chứa rất nhiều đặc trưng hình học, hoặc quá ít đặc trưng, ví dụ như
+<b>mã vạch, mã QR</b> và logo, vì các ảnh này cho kết quả kém”. Nghĩa là phương án “dán mỗi cái QR
+lên cột rồi để ARCore nhận” <b>sẽ không chạy tốt</b>. Phải in một <b>tờ mốc</b> có hoa văn riêng
+bao quanh QR: hoa văn để ARCore bám, QR để đọc dữ liệu. Đây là thay đổi bắt buộc so với bản v2.</li>
+<li><b>Không có plugin Flutter nào đang được bảo trì mà mở ra được Augmented Images.</b>
+<code>ar_flutter_plugin</code> bản phát hành cuối là 11/2022 và tài liệu chỉ có nhận mặt phẳng;
+<code>arcore_flutter_plugin</code> chỉ có Android, không có lớp augmented image, và chính tác giả
+nói đang chuyển sang làm plugin khác. Vậy phần ARCore <b>phải tự viết bằng Kotlin</b> (và Swift cho
+iOS) rồi nối vào Flutter qua platform channel. Đây là khối việc lớn nhất của mức 3, không phải
+“thêm một thư viện”.</li>
+<li><b>Ảnh mốc phải chiếm ít nhất 25% khung hình mới được nhận lần đầu</b>, và phải <b>phẳng</b>,
+không nhăn không cuộn. Nghĩa là người dùng <b>phải đi lại gần mốc</b> — không quét được từ xa.
+Điều này thực ra tốt: đứng gần thì căn chính xác hơn.</li>
+</ol>
+<p class="note" style="margin-bottom:0">Ba điều trên lấy từ tài liệu Google, có dẫn nguồn ở cuối trang.
+Những chỗ tôi <b>chưa kiểm được</b> đều được ghi rõ bằng thẻ <span class="b kt">CHƯA KIỂM</span>.</p>
+</div>
+
+
+<h2>1. Chốt lại: “mức 3” nên là cái gì</h2>
+
+<p class="lead">Có hai thứ rất khác nhau hay bị gọi chung là AR. Chọn sai thì làm gấp ba công việc
+mà được ít giá trị hơn.</p>
+
+<div class="split">
+<div class="card good">
+<h3>3A — Mô hình theo bước chân <span class="b xong">NÊN LÀM TRƯỚC</span></h3>
+<p>Màn hình <b>toàn là mô hình</b>. ARCore chạy ngầm chỉ để biết máy đang ở đâu và quay hướng nào,
+rồi đặt camera trong mô hình đúng vị trí đó. Bạn bước một bước ngoài đời, camera trong mô hình
+bước một bước.</p>
+<ul>
+<li>Không cần ghép hình camera vào cảnh 3D → giữ nguyên được <b>toàn bộ 361 ca test</b> và
+<code>&lt;model-viewer&gt;</code> hiện có.</li>
+<li>Không có chuyện vật thật che vật ảo (bài toán occlusion) vì không hiện vật thật.</li>
+<li><b>Ngoài nắng đọc được</b> — màn hình không bị ảnh của camera làm loãng.</li>
+<li>Đúng với điều bạn viết trong quy trình: <em>“mô hình xoay theo hướng xoay của thiết bị,
+di chuyển theo hướng di chuyển của thiết bị”</em>. Câu đó không đòi phải nhìn xuyên qua.</li>
+</ul>
+</div>
+<div class="card warn">
+<h3>3B — Nhìn xuyên thấu <span class="b do">LÀM SAU, NẾU CẦN</span></h3>
+<p>Hình camera làm nền, mô hình mờ nằm trên. Để đối chiếu trực tiếp “cái đã xây” với
+“cái thiết kế”.</p>
+<ul>
+<li>Phải ghép WebGL trong suốt lên trên camera preview ở 30–60 khung/giây. Trên Android việc này
+mong manh, và <code>&lt;model-viewer&gt;</code> không thiết kế cho việc đó.</li>
+<li>Vật thật không che được vật ảo → cột bê tông đã xây vẫn bị mô hình vẽ đè lên, dễ đọc sai.
+Muốn đúng phải dùng Depth API, mà Depth API chỉ có trên một phần máy.</li>
+<li>Ngoài nắng gần như không nhìn ra gì.</li>
+</ul>
+<p style="margin-bottom:0"><b>Kết luận:</b> 3B cho thêm khoảng 20% giá trị nhưng gánh khoảng 70%
+rủi ro kỹ thuật. Làm 3A trước, chạy được rồi hãy bàn 3B.</p>
+</div>
+</div>
+
+<div class="card hi">
+<h3>Phát hiện quan trọng: mức 3 và việc ẩn/hiện từng cấu kiện là HAI quyết định RỜI NHAU</h3>
+<p style="margin-bottom:0">Trước đây tôi đã trình bày như một ngã ba “giữ model-viewer <b>hoặc</b>
+chuyển sang three.js”. Xem lại thì không phải. ARCore chỉ cần đẩy ra <b>vị trí + hướng camera</b>,
+mà cái đó model-viewer nhận được qua <code>cameraTarget</code> / <code>cameraOrbit</code> — chúng ta
+đã chứng minh bằng số là quy đổi được (bộ test đi bộ, sai số 1,8·10⁻¹⁵ m). Nên:
+<b>mức 3 không bắt buộc phải bỏ model-viewer.</b> Việc bỏ model-viewer chỉ cần thiết nếu muốn
+ẩn/hiện <b>từng cấu kiện riêng</b> — đó là một nhu cầu khác, quyết định sau, độc lập.</p>
+</div>
+
+
+<h2>2. Đã làm xong hôm nay: phần toán căn mô hình vào thực địa</h2>
+
+<p>Phần khó nhất và dễ sai nhất của mức 3 không phải là gọi ARCore, mà là <b>đưa hệ toạ độ mô hình
+về đúng hệ toạ độ thật</b>. Tôi đã viết và kiểm chứng xong phần này hôm nay, vì nó là thứ tôi
+<b>có thể</b> kiểm được ngay mà không cần máy Android.</p>
+
+<div class="card">
+<h3>Bài toán chỉ có đúng 6 ẩn</h3>
+<pre><code>s      — tỷ lệ (một số duy nhất: giải luôn chuyện mét / feet / milimét)
+θ      — góc quay quanh trục THẲNG ĐỨNG (không cho nghiêng: công trình không nghiêng)
+t      — dịch chuyển 3 chiều (3 ẩn)</code></pre>
+<p>Ràng buộc “chỉ quay quanh trục đứng” không phải để cho gọn — nó làm bài toán <b>ổn định hơn hẳn</b>
+so với cho quay tự do 3 trục, vì loại bỏ trước những nghiệm vô nghĩa kiểu “toà nhà nằm nghiêng 4 độ”.</p>
+<p style="margin-bottom:0">Giải bằng <b>công thức đóng</b>, không lặp, không cần thư viện: khoảng 40 dòng,
+chạy trong micro giây trên điện thoại. Hàm <code>fitYawSimilarity()</code>, đã nằm trong
+<code>be3d_simulator.html</code>, kiểm bằng <b>56 ca test</b> theo cách <b>dựng ngược</b>: cho trước
+một phép biến đổi đã biết → sinh dữ liệu → xem hàm có tìm lại đúng số đó không.</p>
+</div>
+
+<h3>Kết quả có giá trị nhất: cần bao nhiêu mốc, và vì sao</h3>
+<table>
+<tr><th>Số mốc</th><th>Có được gì</th><th>Không có được gì</th><th>Bằng chứng</th></tr>
+<tr><td class="c"><b>1</b></td>
+    <td>Vị trí + hướng (lấy từ chính pose 6-DoF của ảnh mốc)</td>
+    <td><b>Không có tỷ lệ.</b> Vẫn phải tin vào đơn vị của file — mà bộ đọc file chỉ đoán được,
+        không khẳng định được</td>
+    <td class="c">test C1</td></tr>
+<tr><td class="c"><b>2</b></td>
+    <td>Đủ cả 6 ẩn → có tỷ lệ thật, <b>bỏ được la bàn</b></td>
+    <td><b>Không phát hiện được sai sót.</b> Vừa đủ ẩn nên sai số luôn bằng 0 một cách hình thức.
+        Test B7: in mốc <b>sai tỷ lệ 5%</b> mà sai số vẫn báo 0</td>
+    <td class="c">test B4, B7</td></tr>
+<tr><td class="c"><b>3+</b></td>
+    <td>Thêm <b>số dư</b> → tính được sai số THẬT bằng cm và báo cho người dùng</td>
+    <td>—</td>
+    <td class="c">test B8, F5</td></tr>
+</table>
+<p><b>Vì vậy quy trình phải yêu cầu tối thiểu 3 mốc</b>, không phải 1 như bản v2. Đây không phải
+ý thích — test B7 và B8 cho thấy 2 mốc không thể phát hiện một lỗi in ấn 5%, còn 3 mốc thì bắt được
+ngay (báo lệch 0,61 m).</p>
+
+<h3>Hai điều mà phép căn 3 mốc này giải quyết luôn</h3>
+<div class="split">
+<div class="card good">
+<h3>Bỏ được la bàn</h3>
+<p style="margin-bottom:0">La bàn trong công trình bê tông cốt thép gần như không dùng được: thép,
+cáp điện, máy hàn làm lệch hàng chục độ, và <b>không có cách nào biết là đang lệch</b>. Ba mốc cho ra
+hướng bằng hình học thuần, không dính gì tới từ trường. Trường <code>gócBắc</code> trong mốc v2
+chuyển thành <b>phương án dự phòng</b>, không còn là đường chính.</p>
+</div>
+<div class="card good">
+<h3>Giải xong chuyện mét / feet / milimét</h3>
+<p style="margin-bottom:0">Hôm nay tôi thêm phép đo kích thước vào bộ đọc file và <b>phát hiện ra
+giới hạn thật của nó</b>: một toà nhà 30 m xuất ra feet cho số 98,4 — mà 98,4 m cũng là một toà nhà
+hoàn toàn hợp lý. <b>Nhìn con số thì không bao giờ phân biệt được.</b> Nên bộ đọc file nay chỉ dám
+khẳng định khi loại trừ được mét (trên 3000 đơn vị), còn lại đưa vào ô xanh “phải xác nhận trước khi
+cắm mốc”. Ba mốc <b>đo</b> ra tỷ lệ, không đoán. Test F1: mô hình feet → tìm lại đúng
+s = 0,304772 (đúng là 0,304800).</p>
+</div>
+</div>
+
+
+<h2>3. Tờ mốc phải in lại — thiết kế v3</h2>
+
+<p>Vì Google nói QR là ảnh mốc kém, tờ mốc phải tách làm hai việc:</p>
+
+<div class="card">
+<pre><code>┌──────────────────────────────────────────┐
+│  ▨▨▨▨  HOA VĂN NHẬN DẠNG  ▨▨▨▨          │  ← ARCore bám vào ĐÂY (cho pose 6-DoF)
+│  ▨▨   (một hình duy nhất, giàu đặc      │     Cùng MỘT hoa văn cho mọi mốc.
+│  ▨▨    trưng, không đối xứng, in sẵn    │     Nạp vào cơ sở dữ liệu ảnh lúc BUILD app.
+│  ▨▨    trong app)                 ▨▨    │     Điểm số arcoreimg phải ≥ 75.
+│                                          │
+│         ┌───────────┐                    │
+│         │ ▄▄ ▄  ▄▄▄ │  ← MÃ QR          │  ← BarcodeDetector / ML Kit đọc ĐÂY (cho dữ liệu)
+│         │ █ ▄▄█ ▄ █ │     BE3D|3|...     │     Mỗi mốc một nội dung khác nhau.
+│         └───────────┘                    │
+│                                          │
+│  MỐC A-01  ·  TẦNG 1  ·  BỀ RỘNG 180 mm  │  ← chữ để người in kiểm bằng mắt
+└──────────────────────────────────────────┘
+        khổ A4 ngang, hoa văn rộng đúng 180 mm</code></pre>
+<p><b>Vì sao dùng chung một hoa văn cho mọi mốc:</b> cơ sở dữ liệu ảnh của ARCore phải nạp lúc build,
+mà app không thể biết trước bạn sẽ in bao nhiêu mốc. Nên hoa văn cố định (ARCore lo <b>pose</b>),
+QR thay đổi (lo <b>mốc nào, ở đâu trong mô hình</b>). ARCore theo được tối đa 20 ảnh cùng lúc, thừa sức.</p>
+<p style="margin-bottom:0"><b>Trường hợp phải xử lý:</b> hai tờ mốc giống hệt nhau cùng nằm trong khung hình
+→ ARCore báo hai thực thể của cùng một ảnh, không phân biệt được. Cách giải: ghép mỗi thực thể với QR
+gần nó nhất trên mặt phẳng ảnh (so khớp toạ độ 2D). Nếu ghép nhập nhằng → <b>bỏ khung hình đó</b>,
+không đoán.</p>
+</div>
+
+<h3>Nội dung mã QR — bản v3</h3>
+<table>
+<tr><th>Trường</th><th>Ví dụ</th><th>Vì sao cần</th></tr>
+<tr><td><code>BE3D</code></td><td>BE3D</td><td>đầu chuỗi, để biết đây là mốc của app này</td></tr>
+<tr><td><code>3</code></td><td>3</td><td>phiên bản. Vẫn đọc được mốc v1/v2 cũ</td></tr>
+<tr><td><code>id</code></td><td>A-01</td><td><b>MỚI.</b> Định danh mốc — để căn lại nhiều lần, và để biết mốc nào lệch</td></tr>
+<tr><td><code>file</code></td><td>Tang1.glb</td><td>chống dán mốc của công trình khác</td></tr>
+<tr><td><code>tầng</code></td><td>L01</td><td><b>MỚI.</b> Lên tầng 2 mà vẫn dùng mốc tầng 1 là lệch cả sàn</td></tr>
+<tr><td><code>x,y,z</code></td><td>12.5,0,8.75</td><td><b>MỚI.</b> Toạ độ điểm mốc <b>trong hệ của file</b>. Đây là đầu vào của phép căn</td></tr>
+<tr><td><code>mm</code></td><td>180</td><td><b>MỚI.</b> Bề rộng thật của hoa văn khi in, tính bằng mm. In co giãn 5% là lệch 5%</td></tr>
+<tr><td><code>mp</code></td><td>T</td><td><b>MỚI.</b> Dán trên Tường hay trên Sàn. Đổi cách hiểu trục pháp tuyến của ảnh mốc</td></tr>
+<tr><td><code>bắc</code></td><td>217.5</td><td>giữ lại làm <b>dự phòng</b> cho máy không có ARCore</td></tr>
+</table>
+<pre><code>BE3D|3|A-01|Tang1.glb|L01|12.5,0,8.75|180|T|217.5     (khoảng 47 byte — QR vẫn nhỏ, quét nhanh)</code></pre>
+<p class="note">Giữ nguyên cách thoát ký tự đã kiểm chứng ở v2: thoát <code>%</code> trước rồi mới tới
+<code>|</code>; giải mã thì làm ngược lại. Thứ tự này quan trọng, đã có 24 ca test giữ chỗ.</p>
+
+
+<h2>4. Mọi trường hợp — bảng đầy đủ</h2>
+<p class="note">Cột “Xử lý” là cách app phải phản ứng. Cột cuối: <span class="b xong">ĐÃ LÀM</span>
+đã có code chạy · <span class="b co">THIẾT KẾ</span> đã chốt cách làm, chưa viết ·
+<span class="b kt">CHƯA KIỂM</span> tôi chưa xác nhận được từ đây, phải thử trên máy thật.</p>
+
+<h3>A. Dữ liệu mô hình</h3>
+<table>
+<tr><th style="width:24%">Trường hợp</th><th style="width:30%">Hậu quả nếu bỏ qua</th><th>Xử lý</th><th class="c">TT</th></tr>
+<tr><td>File nén Draco / KTX2 / Meshopt</td><td>Không hiện gì khi mất mạng, mãi mãi</td>
+    <td>Bộ đọc file chặn ngay trước khi render, nói rõ phải xuất lại</td><td class="c"><span class="b xong">ĐÃ LÀM</span></td></tr>
+<tr><td>Đơn vị là feet / milimét</td><td>Mô hình to hoặc nhỏ sai 3,28 hoặc 1000 lần</td>
+    <td>Đo hộp bao, đoán đơn vị, và <b>3 mốc đo ra tỷ lệ thật</b></td><td class="c"><span class="b xong">ĐÃ LÀM</span></td></tr>
+<tr><td>Đơn vị mét và feet cho cùng con số hợp lý</td><td>Khẳng định sai, người dùng tin</td>
+    <td>Chỉ khẳng định khi loại trừ được mét. Còn lại ghi vào ô “phải xác nhận”</td><td class="c"><span class="b xong">ĐÃ LÀM</span></td></tr>
+<tr><td>Nhiều instance dùng chung một mesh</td><td>Đo hộp bao ra <b>1 m</b> thay vì <b>91 m</b></td>
+    <td>Đi hết cây node, nhân ma trận tích luỹ, biến đổi cả 8 đỉnh</td><td class="c"><span class="b xong">ĐÃ LÀM</span></td></tr>
+<tr><td>Trục Z hướng lên (chưa đổi hệ Revit)</td><td>Mô hình nằm nghiêng 90° trong không gian thật</td>
+    <td>Đoán trục cao + cảnh báo. Chỗ nào không đoán nổi thì <b>nói là không đoán nổi</b></td><td class="c"><span class="b xong">ĐÃ LÀM</span></td></tr>
+<tr><td>Accessor thiếu min/max</td><td>Không đo được gì, im lặng</td>
+    <td>Báo rõ là không đo được, không đoán bừa</td><td class="c"><span class="b xong">ĐÃ LÀM</span></td></tr>
+<tr><td>File quá nặng (hàng trăm MB)</td><td>Hết RAM, trắng màn hình giữa công trường</td>
+    <td>Cảnh báo trên 150 MB. Mức 3 cần thêm: <b>chỉ vẽ trong bán kính 30–50 m quanh người</b></td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Mô hình quá dày, AR tụt khung hình</td><td>Giật, chóng mặt, ARCore mất bám do nhoè</td>
+    <td>Cắt theo bán kính + hạ chi tiết theo khoảng cách. Ngưỡng phải đo trên máy thật</td><td class="c"><span class="b kt">CHƯA KIỂM</span></td></tr>
+</table>
+
+<h3>B. Máy của người dùng</h3>
+<table>
+<tr><th style="width:24%">Trường hợp</th><th style="width:30%">Hậu quả nếu bỏ qua</th><th>Xử lý</th><th class="c">TT</th></tr>
+<tr><td>Máy không nằm trong danh sách hỗ trợ ARCore</td><td>App sập hoặc treo màn hình đen</td>
+    <td>Gọi <code>ArCoreApk.checkAvailability()</code> ngay khi mở. Không hỗ trợ → <b>tự chuyển về mức 2</b>, nói rõ vì sao</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Chưa cài “Google Play Services for AR”</td><td>Người dùng tưởng app hỏng</td>
+    <td><code>requestInstall()</code>. <b>Nhưng ngoài công trường không có mạng để tải</b> → phải nhắc cài ở nhà, ghi vào hướng dẫn</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Máy Huawei không có dịch vụ Google</td><td>Không bao giờ chạy được ARCore</td>
+    <td>Nhận biết và nói thẳng: máy này chỉ dùng được mức 2. (AREngine của Huawei là một bộ riêng, không nằm trong phạm vi)</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>iPhone quá cũ (trước A9)</td><td>Không có ARKit</td>
+    <td>Kiểm <code>ARWorldTrackingConfiguration.isSupported</code> → mức 2</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Từ chối quyền camera</td><td>ARCore không khởi động, không rõ lý do</td>
+    <td>Xin quyền có giải thích. Từ chối → mức 2, vẫn xem được mô hình</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Máy nóng, hạ tần số</td><td>Tụt khung hình rồi mất bám, người dùng không hiểu</td>
+    <td>Theo dõi khung hình, tụt lâu thì hiện “máy đang nóng, nên nghỉ” và hạ chi tiết</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Hết pin — AR ăn pin rất nhanh</td><td>Đang đo giữa công trường thì tắt máy</td>
+    <td>Cảnh báo dưới 20%, có nút tắt AR để về xem thường. Ghi vào hướng dẫn: mang sạc dự phòng</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Máy nào cũng có Depth API?</td><td>Nếu 3B dựa vào nó thì một phần máy không dùng được</td>
+    <td>Chỉ dùng Depth API như phần thêm, không bắt buộc. Là một lý do nữa để hoãn 3B</td><td class="c"><span class="b kt">CHƯA KIỂM</span></td></tr>
+</table>
+
+<h3>C. Nhận mốc</h3>
+<table>
+<tr><th style="width:24%">Trường hợp</th><th style="width:30%">Hậu quả nếu bỏ qua</th><th>Xử lý</th><th class="c">TT</th></tr>
+<tr><td><b>QR là ảnh mốc kém</b> (Google nói rõ)</td><td>ARCore không nhận, hoặc nhận rồi pose nhảy</td>
+    <td>Tờ mốc v3: hoa văn riêng cho ARCore, QR chỉ để đọc dữ liệu</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Ảnh mốc phải chiếm ≥25% khung hình</td><td>Đứng xa quét mãi không được, tưởng hỏng</td>
+    <td>Hiện khung ngắm + chữ “đi lại gần hơn”, đo bề rộng ảnh mốc trên khung hình theo thời gian thực</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>In co giãn (máy in “vừa khổ giấy”)</td><td>Lệch tỷ lệ vài %, không ai thấy</td>
+    <td>In kèm <b>thước 100 mm</b> trên tờ mốc, bắt người dùng đo lại bằng thước thật. QR ghi bề rộng thật</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Tờ mốc nhăn, cuộn, dán trên mặt cong</td><td>ARCore đòi phẳng; pose sai âm thầm</td>
+    <td>Yêu cầu dán lên bìa cứng. Hướng dẫn ghi rõ</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Nắng gắt chiếu vào mốc / bóng loá</td><td>Không đọc được QR, không nhận được ảnh</td>
+    <td>In mờ (không dùng giấy bóng), có mái che nhỏ, hoặc dán chỗ râm. <b>Phải thử ngoài nắng thật</b></td><td class="c"><span class="b kt">CHƯA KIỂM</span></td></tr>
+<tr><td>Hầm tối, không đủ sáng</td><td>Cả QR lẫn ARCore đều chết</td>
+    <td>Bật đèn flash khi quét. Sáng vẫn không đủ → nói thẳng là không quét được</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Mốc bị bẩn, ướt, bị che một phần</td><td>Nhận sai hoặc nhận chập chờn</td>
+    <td>Bọc túi nylon trong. App đòi pose ổn định <b>ít nhất 1 giây</b> mới nhận</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Hai tờ mốc giống nhau cùng trong khung hình</td><td>Gán sai toạ độ → lệch cả công trình</td>
+    <td>Ghép theo toạ độ 2D. Nhập nhằng → <b>bỏ khung hình</b>, không đoán</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Mốc của <b>file khác</b> hoặc <b>tầng khác</b></td><td>Lệch cả sàn, rất khó nhận ra</td>
+    <td>QR có tên file + tầng, không khớp thì từ chối và nói rõ</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Dán mốc sai chỗ so với toạ độ đã ghi</td><td>Lệch, và không có cách nào biết nếu chỉ có 2 mốc</td>
+    <td><b>Bắt buộc ≥3 mốc</b> → tính được sai số thật. Test F5: mốc lệch 1,5 m → báo lệch 0,76 m</td><td class="c"><span class="b xong">ĐÃ LÀM</span></td></tr>
+<tr><td>Ba mốc thẳng hàng, hoặc trên cùng một cột đứng</td><td>Không suy ra được hướng; công thức chia cho 0</td>
+    <td>Phát hiện suy biến và <b>từ chối</b>, kèm câu “hãy dán mốc cách xa nhau theo phương ngang”</td><td class="c"><span class="b xong">ĐÃ LÀM</span></td></tr>
+<tr><td>Nhập lẫn thứ tự mốc</td><td>Mô hình lộn ngược hoặc tỷ lệ âm</td>
+    <td>Kiểm tỷ lệ phải dương, và mốc có <code>id</code> nên ghép được đúng cặp</td><td class="c"><span class="b xong">ĐÃ LÀM</span></td></tr>
+</table>
+
+<h3>D. ARCore mất bám — phần dễ bị coi nhẹ nhất</h3>
+<div class="card warn">
+<p style="margin-bottom:0">ARCore nhận biết vị trí bằng cách nhìn <b>các điểm đặc trưng</b> trong ảnh camera
+và ghép với cảm biến quán tính. Công trường đang thi công là môi trường <b>xấu gần như tệ nhất</b> cho
+việc này: tường mới trát trắng trơn không có đặc trưng, cốp pha lặp đi lặp lại giống nhau, và
+<b>hôm nay khác hôm qua</b> nên bản đồ điểm đặc trưng cũ vô giá trị. Đây là lý do phải cắm nhiều mốc,
+không phải một.</p>
+</div>
+<table>
+<tr><th style="width:24%">Trường hợp</th><th style="width:30%">Hậu quả nếu bỏ qua</th><th>Xử lý</th><th class="c">TT</th></tr>
+<tr><td>Tường trắng trơn, không đặc trưng</td><td>Mất bám, mô hình trôi hoặc đứng im</td>
+    <td>Bắt trạng thái <code>TrackingState.PAUSED</code> + lý do, hiện “hãy hướng máy về chỗ có nhiều chi tiết”</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Cốp pha, gạch lát — hoa văn lặp lại</td><td>Ghép sai điểm → <b>nhảy vị trí</b>, nguy hiểm hơn cả mất bám vì trông vẫn bình thường</td>
+    <td>Phát hiện pose nhảy quá <b>0,5 m trong 1 khung hình</b> → không tin, giữ vị trí cũ, đòi quét lại mốc</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Đi nhanh, ảnh nhoè</td><td>Mất bám giữa lúc đang đi</td>
+    <td>Nhắc “đi chậm lại”. Nhoè nhiều thì đóng băng mô hình chứ không vẽ vị trí sai</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Trôi tích luỹ theo đường đi</td><td>Đi 50 m thì lệch cả mét mà không ai biết</td>
+    <td>Hiện <b>“đã đi x m từ mốc gần nhất, sai số ước khoảng ±y”</b>. Vượt ngưỡng → đòi quét lại mốc</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Trôi bao nhiêu mỗi mét đi?</td><td>Không biết thì không đặt được khoảng cách giữa các mốc</td>
+    <td><b>Phải đo</b>: đi 10/25/50 m rồi về mốc cũ, xem lệch mấy cm. Từ đó suy ra khoảng cách mốc</td><td class="c"><span class="b kt">CHƯA KIỂM</span></td></tr>
+<tr><td>Lên xuống thang / thang máy</td><td>Sai cao độ, đứng tầng 2 xem mô hình tầng 1</td>
+    <td>Mốc có trường tầng. Đổi tầng thì <b>bắt buộc quét mốc mới</b>, không nội suy</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Mặt nước, kính, bê tông ướt</td><td>Đặc trưng ảo do phản chiếu → pose sai</td>
+    <td>Cùng cơ chế bắt pose nhảy ở trên</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Xe tải, công nhân che gần hết khung hình</td><td>Đặc trưng chuyển động → ARCore hiểu là mình đang đi</td>
+    <td>Cùng cơ chế bắt pose nhảy. Nhắc hướng máy về phần cố định</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Máy chúc xuống đất / chỉ thấy trời</td><td>Không có đặc trưng dùng được</td>
+    <td>Nhắc nâng máy lên ngang tầm mắt</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Bỏ máy vào túi rồi lấy ra</td><td>Mất bám hoàn toàn, ARCore không tự về được</td>
+    <td>App tạm dừng khi che camera; lấy ra thì <b>đòi quét lại mốc</b>, không tự tin trở lại</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>App bị đưa ra nền / có cuộc gọi</td><td>Phiên ARCore chết, quay lại thì lệch âm thầm</td>
+    <td>Huỷ phiên khi <code>onPause</code>, quay lại thì bắt buộc quét mốc</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+</table>
+
+<h3>E. Người dùng và an toàn</h3>
+<table>
+<tr><th style="width:24%">Trường hợp</th><th style="width:30%">Hậu quả nếu bỏ qua</th><th>Xử lý</th><th class="c">TT</th></tr>
+<tr><td><b>Vừa đi vừa nhìn điện thoại trên công trường đang thi công</b></td>
+    <td>Đây là <b>rủi ro an toàn thật</b>, không phải chuyện kỹ thuật: hố, thép chờ, xe chạy</td>
+    <td>Thiết kế theo lối <b>“đứng lại để xem”</b>: đi nhanh thì làm mờ màn hình và hiện nhắc nhở.
+        Không làm tính năng nào khuyến khích đi mà mắt dán vào máy</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Mất bám giữa lúc đang dùng</td><td>Mô hình trôi mà người dùng vẫn tin</td>
+    <td><b>Không bao giờ vẽ vị trí không tin được.</b> Đóng băng + dải băng đỏ “ĐÃ MẤT BÁM — quay lại mốc gần nhất”</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Căn lại làm mô hình nhảy giật</td><td>Chóng mặt, mất phương hướng</td>
+    <td>Chuyển dần trong khoảng <b>0,3–0,5 giây</b> chứ không nhảy tức thì. Lệch quá 1 m thì hỏi trước khi nhảy</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Đeo găng, mũ bảo hộ, kính</td><td>Nút nhỏ không bấm được</td>
+    <td>Nút tối thiểu 46 px (đã làm cho bản HTML). Mức 3 thêm: thao tác chính chỉ 1–2 nút to</td><td class="c"><span class="b xong">ĐÃ LÀM</span></td></tr>
+<tr><td>Ngoài nắng không thấy màn hình</td><td>Không dùng được vào ban ngày, tức là hầu hết thời gian</td>
+    <td>Đây là <b>lý do mạnh nhất chọn 3A trước 3B</b>: không có hình camera thì tương phản cao hơn nhiều</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Người dùng không biết đang tin được đến đâu</td><td>Dùng số liệu sai để ra quyết định thi công</td>
+    <td>Luôn hiện mức tin cậy có căn cứ: <code>alignQuality()</code> — 4 mức, ngưỡng rõ ràng, ≤2 mốc thì
+        nói thẳng <b>“CHƯA BIẾT sai số”</b> thay vì báo tốt</td><td class="c"><span class="b xong">ĐÃ LÀM</span></td></tr>
+</table>
+
+<h3>F. Kỹ thuật ghép Flutter ↔ ARCore</h3>
+<table>
+<tr><th style="width:24%">Trường hợp</th><th style="width:30%">Hậu quả nếu bỏ qua</th><th>Xử lý</th><th class="c">TT</th></tr>
+<tr><td>Không plugin Flutter nào mở ra Augmented Images</td><td>Đến lúc viết mới phát hiện, vỡ kế hoạch</td>
+    <td><b>Đã xác nhận.</b> Kế hoạch phải tính luôn việc tự viết plugin Kotlin (+ Swift). Đây là khối việc lớn nhất</td><td class="c"><span class="b xong">ĐÃ LÀM</span></td></tr>
+<tr><td>Đẩy pose vào WebView 30 lần/giây có mượt không?</td>
+    <td><b>Đây là rủi ro số 1.</b> Nếu không mượt thì phải viết lại phần hiển thị bằng native, mất phần lớn công đã làm</td>
+    <td><b>Phải đo trước khi viết bất cứ gì khác.</b> Xem phần 6, thí nghiệm 1</td><td class="c"><span class="b kt">CHƯA KIỂM</span></td></tr>
+<tr><td>ARCore cần ngữ cảnh GL dù không vẽ hình camera</td><td>Phiên không khởi động được</td>
+    <td>Tạo texture rồi không vẽ — cách làm chuẩn cho “ARCore chỉ để định vị”</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>iOS là một bộ code riêng hoàn toàn</td><td>Tưởng làm một lần được cả hai</td>
+    <td>ARKit <code>ARImageAnchor</code> tương ứng nhưng <b>API khác hẳn</b>. Tính là một khối việc riêng. Nên làm Android trước</td><td class="c"><span class="b co">THIẾT KẾ</span></td></tr>
+<tr><td>Phần toán căn chỉnh đặt ở đâu?</td><td>Viết hai lần, hai bản lệch nhau</td>
+    <td>Đặt <b>một chỗ duy nhất</b> trong JS (đã xong, 56 test). Native chỉ đưa pose thô sang</td><td class="c"><span class="b xong">ĐÃ LÀM</span></td></tr>
+</table>
+
+
+<h2>5. Bậc thang tụt xuống — không bao giờ để người dùng vào đường cùng</h2>
+<div class="card">
+<table>
+<tr><th>Mức</th><th>Điều kiện</th><th>Người dùng được gì</th></tr>
+<tr><td class="c"><b>3</b></td><td>Có ARCore/ARKit + đã quét ≥3 mốc + đang bám tốt</td>
+    <td>Mô hình đi theo bước chân, kèm số sai số thật</td></tr>
+<tr><td class="c"><b>2,5</b></td><td>Có ARCore nhưng chỉ quét được 1–2 mốc</td>
+    <td>Vẫn đi theo bước chân, nhưng ghi rõ <b>“chưa biết sai số”</b> và tỷ lệ đang lấy từ file</td></tr>
+<tr><td class="c"><b>2</b></td><td>Không có ARCore, hoặc mất bám, hoặc từ chối camera</td>
+    <td>Chế độ đi bộ bằng nút + la bàn (đã chạy, 40 test). Nói rõ đang ở mức nào và vì sao</td></tr>
+<tr><td class="c"><b>1</b></td><td>Không cả la bàn (mở bằng <code>file://</code>, hoặc nhiễu từ)</td>
+    <td>Xoay/zoom bằng tay + ghi chú + ẩn hiện nhóm. Vẫn là một công cụ dùng được</td></tr>
+</table>
+<p style="margin:10px 0 0"><b>Nguyên tắc:</b> mỗi lần tụt bậc phải <b>nói ra</b> — mức nào, vì sao, và làm gì để
+lên lại. Tụt bậc im lặng còn tệ hơn báo lỗi, vì người dùng vẫn tưởng đang tin được.</p>
+</div>
+
+
+<h2>6. Phải đo trước khi viết — bốn thí nghiệm</h2>
+<p>Tôi không có Android SDK và không ra được <code>dl.google.com</code> từ máy này, nên bốn điều dưới đây
+<b>chỉ máy thật trả lời được</b>. Làm theo thứ tự; thí nghiệm 1 <b>chặn</b> mọi thứ sau nó.</p>
+
+<div class="card bad">
+<h3>Thí nghiệm 1 — Đẩy pose vào WebView có mượt không? <span class="b kt">CHẶN</span></h3>
+<p>Viết một trang HTML nhỏ chỉ có <code>&lt;model-viewer&gt;</code> và một vòng lặp đặt
+<code>cameraTarget</code>/<code>cameraOrbit</code> 30 và 60 lần/giây bằng số giả. Nạp mô hình
+18,4 MB thật của bạn. Đo khung hình thật trên đúng chiếc điện thoại sẽ dùng.</p>
+<p style="margin-bottom:0"><b>Đạt:</b> ≥25 khung/giây ổn định, không giật khi xoay.
+<b>Không đạt:</b> phải viết phần hiển thị bằng native (Filament/SceneView) và port lại các tính năng —
+việc lớn hơn nhiều, phải biết <b>trước</b> chứ không phải sau.</p>
+</div>
+
+<div class="card warn">
+<h3>Thí nghiệm 2 — Hoa văn mốc đạt điểm bao nhiêu?</h3>
+<p style="margin-bottom:0">Thiết kế hoa văn, chấm điểm bằng <code>arcoreimg</code> của Google.
+<b>Đạt:</b> ≥75. In ra A4, dán bìa cứng, thử nhận trong nhà, ngoài nắng, trong hầm.
+Ghi lại: đứng cách bao xa thì nhận được, mất mấy giây.</p>
+</div>
+
+<div class="card warn">
+<h3>Thí nghiệm 3 — Trôi bao nhiêu mỗi mét đi?</h3>
+<p style="margin-bottom:0">Dán 1 mốc. Quét. Đi 10 m rồi quay về đúng chỗ cũ — xem lệch mấy cm.
+Lặp với 25 m và 50 m, trong ba môi trường: hành lang bình thường, tường trát trắng, hầm tối.
+Kết quả này <b>quyết định khoảng cách giữa các mốc</b>. Không có nó thì mọi con số về mật độ mốc
+chỉ là phỏng đoán.</p>
+</div>
+
+<div class="card warn">
+<h3>Thí nghiệm 4 — Ba mốc thật có ra sai số hợp lý không?</h3>
+<p style="margin-bottom:0">Đây là thí nghiệm kiểm chính phần toán tôi đã viết hôm nay. Dán 3 mốc ở
+3 góc một gian đã biết kích thước, nhập toạ độ từ Revit, quét cả 3, xem <code>alignQuality()</code>
+báo bao nhiêu. <b>Đạt:</b> dưới 10 cm trong một gian 10×10 m. Rồi <b>cố tình dán lệch một mốc 1 m</b>
+và xác nhận app bắt được — test F5 nói là phải bắt được, cần xác nhận trên thực tế.</p>
+</div>
+
+
+<h2>7. Thứ tự làm</h2>
+<table>
+<tr><th class="c">Bước</th><th>Việc</th><th>Xong thì kiểm được gì</th></tr>
+<tr><td class="c">0</td><td><b>Đã xong hôm nay:</b> phép đo tỷ lệ/trục (100 test) + phép căn 3 mốc (56 test)</td>
+    <td>Toán đã đúng bằng số. Không phải chờ máy Android</td></tr>
+<tr><td class="c">1</td><td><b>Thí nghiệm 1</b> — đo tốc độ đẩy pose vào WebView</td>
+    <td>Biết có giữ được model-viewer hay phải viết lại native. <b>Chặn các bước sau</b></td></tr>
+<tr><td class="c">2</td><td>Bọc bản HTML hiện tại vào vỏ Flutter + WebView, ra <code>.apk</code></td>
+    <td>Bạn thử được <b>toàn bộ 361 ca đã kiểm</b> trên máy thật, ngoài công trường, ngay</td></tr>
+<tr><td class="c">3</td><td>Thiết kế + in tờ mốc v3, <b>thí nghiệm 2</b></td>
+    <td>Biết mốc có nhận được ngoài nắng và trong hầm không</td></tr>
+<tr><td class="c">4</td><td>Viết plugin Kotlin: phiên ARCore chỉ để định vị + augmented image + đẩy pose sang Dart</td>
+    <td>Có pose thật để nối vào phần toán đã xong</td></tr>
+<tr><td class="c">5</td><td>Nối vào: quét 3 mốc → <code>fitYawSimilarity</code> → đặt camera. <b>Thí nghiệm 3 và 4</b></td>
+    <td><b>Mức 3 chạy được.</b> Có số sai số thật</td></tr>
+<tr><td class="c">6</td><td>Xử lý mất bám, tụt bậc, cảnh báo an toàn (mục D và E)</td>
+    <td>Dùng được ngoài công trường thật, không chỉ trong phòng</td></tr>
+<tr><td class="c">7</td><td>iOS / ARKit</td>
+    <td>Một khối việc riêng. Chỉ làm sau khi Android đã chạy ổn</td></tr>
+</table>
+
+<div class="card hi">
+<h3>Đề nghị: làm bước 2 ngay, song song với thí nghiệm 1</h3>
+<p style="margin-bottom:0">Bước 2 không phụ thuộc kết quả thí nghiệm 1, và nó cho bạn thứ có giá trị
+nhất ngay lúc này: <b>một file <code>.apk</code> để mang ra công trường</b>. Ba câu chỉ hiện trường
+trả lời được vẫn đang treo — la bàn có xoay đúng giữa thép không, QR quét ngoài nắng có được không,
+ẩn theo nhóm vật liệu có đủ dùng không. Biết ba câu đó rồi thì mức 3 đi nhanh hơn nhiều, vì bớt
+được kha khá phỏng đoán.</p>
+</div>
+
+
+<h2>8. Tôi chưa kiểm được những gì</h2>
+<div class="card">
+<p>Nói rõ để bạn biết chỗ nào tin được đến đâu:</p>
+<ul>
+<li><b>Đã kiểm bằng code chạy thật:</b> phép đo kích thước/đơn vị/trục (100 ca), phép căn 3 mốc
+(56 ca), và 205 ca của các phần trước. Tổng <b>361 ca, tất cả đạt</b>. Phần toán căn chỉnh kiểm theo
+lối dựng ngược nên không thể tự lừa mình.</li>
+<li><b>Đã kiểm bằng tài liệu Google, có dẫn nguồn:</b> QR là ảnh mốc kém; ngưỡng 25% khung hình;
+yêu cầu ảnh phẳng, ≥300×300 px, điểm ≥75; tối đa 20 ảnh cùng lúc; kích thước in là tuỳ chọn nhưng
+nên khai.</li>
+<li><b>Đã kiểm bằng cách đọc kho mã nguồn:</b> không plugin Flutter nào đang bảo trì mà mở ra
+Augmented Images.</li>
+<li><b>CHƯA kiểm được, phải thử trên máy thật:</b> tốc độ đẩy pose vào WebView; mức trôi thật ngoài
+công trường; mốc có nhận được ngoài nắng/trong hầm không; mô hình 18,4 MB có chạy nổi tốc độ AR không;
+Depth API có trên máy của bạn không. Tôi <b>không</b> đưa con số phỏng đoán cho những chỗ này, vì một
+con số bịa trông y như một con số đo được.</li>
+<li><b>Chi tiết API ARCore/ARKit trong tài liệu này</b> viết theo hiểu biết chung, chưa đối chiếu từng
+chữ ký hàm với tài liệu bản mới nhất. Trước khi viết code sẽ phải đối chiếu lại — đúng bài học từ ba
+lần sai chữ ký hàm ở phần pyRevit.</li>
+</ul>
+<p style="margin-bottom:0" class="note">Nguồn: tài liệu Augmented Images và Fundamentals của ARCore
+(developers.google.com/ar), kho <code>CariusLars/ar_flutter_plugin</code> và
+<code>giandifra/arcore_flutter_plugin</code> trên GitHub.</p>
+</div>
+
+</div>
+</body>
+</html>
