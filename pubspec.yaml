@@ -19,7 +19,7 @@ dependencies:
   # sang FilePicker.pickFiles() (hàm static). Code trong lib/main.dart viết
   # theo bản 11. Nếu máy bạn dùng Flutter cũ và pub báo không giải được, xem
   # mục "Nếu pub get báo lỗi" trong README.md.
-  file_picker: ^11.0.0
+  file_picker: ^10.3.10
 
   # Tìm thư mục ghi ghi chú và file xuất.
   path_provider: ^2.1.0
