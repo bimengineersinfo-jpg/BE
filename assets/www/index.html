@@ -3,6 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+  // Đang chạy THẬT trong app (được máy chủ nội bộ của Flutter phục vụ qua
+  // 127.0.0.1) thì bỏ khung điện thoại trang trí + cột giải thích của bản
+  // demo xem trên máy tính, cho giao diện thật chiếm trọn màn hình.
+  // Mở trực tiếp bằng trình duyệt máy tính (file:// hoặc domain khác) thì
+  // vẫn giữ nguyên bản demo như cũ, không ảnh hưởng gì.
+  if (location.hostname === '127.0.0.1') {
+    document.documentElement.classList.add('che_do_that');
+  }
+</script>
 <title>BE 3D Site Viewer — Bản mô phỏng</title>
 <style>
   :root{
@@ -192,6 +202,15 @@
                   background:#fff;cursor:pointer;font-family:inherit}
   .samples button:hover{border-color:var(--blue);color:var(--blue)}
   code{background:#f1f3f5;padding:1px 5px;border-radius:4px;font-size:12px}
+
+/* ---------- CHẾ ĐỘ THẬT: chạy trong app, bỏ khung demo, full màn hình ---------- */
+html.che_do_that, html.che_do_that body{height:100%;margin:0}
+html.che_do_that .wrap{display:block;max-width:none;padding:0;margin:0;
+                       height:100dvh;height:100vh}
+html.che_do_that h1, html.che_do_that .sub, html.che_do_that .panel{display:none}
+html.che_do_that .phone{width:100%;height:100%;padding:0;border-radius:0;
+                        box-shadow:none;position:static;background:#fff}
+html.che_do_that .screen{border-radius:0}
 </style>
 </head>
 <body>
