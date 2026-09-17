@@ -1,0 +1,42 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    name: Build APK (release)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Lấy code từ repo
+        uses: actions/checkout@v4
+
+      - name: Cài Java (cần cho Gradle/Android)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Cài Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Kiểm môi trường
+        run: flutter doctor -v
+
+      - name: Chạy chuan_bi.sh — dựng project + build APK
+        run: |
+          chmod +x chuan_bi.sh
+          bash chuan_bi.sh
+
+      - name: Đăng file APK để tải về
+        uses: actions/upload-artifact@v4
+        with:
+          name: be3d-app-release-apk
+          path: app/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
