@@ -1290,6 +1290,7 @@ function openViewer(r){
       setTimeout(() => { const bar = stage.querySelector('.infobar');
                          if (bar) bar.classList.add('hidden'); }, 4000);
       showArStatus(mv);
+      apDungTyLe(mv);
     });
     mv.addEventListener('error', () => { const h=$('#hint'); if(h) h.style.display='block'; });
     mv.addEventListener('click', onModelClick);
@@ -2235,6 +2236,11 @@ let mocMode = false;          // đang chờ người dùng chạm để cắm m
 let doTyLeMode = 0;           // 0 = tắt, 1 = chờ điểm 1, 2 = chờ điểm 2
 let doTyLeP1 = null;
 let tyLeDaDo = null;          // {s, donVi} sau khi đo xong
+
+function apDungTyLe(mv){
+  if (!mv || !tyLeDaDo || !(tyLeDaDo.s > 0)) return;
+  try { mv.scale = `${tyLeDaDo.s} ${tyLeDaDo.s} ${tyLeDaDo.s}`; } catch(_){}
+}
 let canChinh = null;          // kết quả khớp đang dùng
 
 /* --- Nguồn toạ độ thực địa ------------------------------------------
@@ -2341,6 +2347,7 @@ function hoiKhoangCachThat(P1, P2){
         const el = $('#dKq');
         if (!kq.ok){ el.innerHTML = `<div class="msg err" style="margin-top:12px"><div class="h">Chưa tính được</div>${esc(kq.why)}</div>`; return; }
         tyLeDaDo = {s: kq.s, donVi: kq.donVi};
+        apDungTyLe($('#mv'));
         el.innerHTML = `<div class="msg ${kq.khop?'arn':'warn'}" style="margin-top:12px">
           <div class="h">${kq.khop ? '✅ Đã đo xong tỷ lệ' : '⚠️ Tỷ lệ lạ'}</div>
           1 đơn vị trong file = <b>${kq.s.toPrecision(5)}</b> m.<br>${esc(kq.why)}</div>`;
