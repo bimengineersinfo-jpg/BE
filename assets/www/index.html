@@ -100,8 +100,14 @@
   .fallback>div{max-width:290px}
 
 
-  /* ---------- ghi chú / đánh dấu vấn đề ---------- */
-  .fab{position:absolute;right:12px;bottom:78px;display:flex;flex-direction:column;gap:8px;align-items:flex-end;z-index:5}
+   /* ---------- ghi chú / đánh dấu vấn đề ---------- */
+  .fab{position:absolute;right:12px;bottom:78px;z-index:5}
+  #btnFabToggle{border:0;cursor:pointer;border-radius:50%;width:50px;height:50px;padding:0;
+                font-size:21px;line-height:50px;text-align:center;background:var(--blue);
+                color:#fff;box-shadow:0 3px 10px rgba(0,0,0,.3)}
+  .fab-list{display:none;position:absolute;right:0;bottom:60px;flex-direction:column;gap:8px;
+            align-items:flex-end;max-height:min(70vh,420px);overflow-y:auto;padding:2px}
+  .fab-list.open{display:flex}
   .fab button{border:0;cursor:pointer;border-radius:22px;padding:10px 15px;font-size:12.5px;font-weight:600;
               font-family:inherit;box-shadow:0 3px 10px rgba(0,0,0,.22);background:#fff;color:#1b1f24}
   .fab button.on{background:var(--red);color:#fff}
@@ -1238,16 +1244,19 @@ function openViewer(r){
     <div class="hintbox" id="hint" style="display:none"><span style="float:right;cursor:pointer;opacity:.7;padding:0 2px" onclick="this.parentNode.remove()">✕</span>Nếu vẫn chưa thấy mô hình: bấm nút kiểm tra
       ở góc dưới phải để xem kết quả phân tích file. Nguyên nhân hay gặp nhất là file .glb được xuất
       kèm nén Draco — nén đó cần Internet để giải mã.</div>
-    <div class="fab">
-      <button id="btnInfo" title="Hiện lại thông tin file">ⓘ</button>
-      <button id="btnWalk">🚶 Đi bộ</button>
-      <button id="btnPickMode">👆 Chọn</button>
-      <button id="btnFilter">🎚️ Lọc</button>
-      <button id="btnMoc">📍 Cắm mốc (<span id="moccount">0</span>)</button>
-      <button id="btnTyLe">📏 Đo tỷ lệ</button>
-      <button id="btnQr">🔳 Mốc QR</button>
-      <button id="btnNotes">📋 Ghi chú (<span id="ncount">0</span>)</button>
-      <button id="btnMark" class="primary">✏️ Đánh dấu</button>
+        <div class="fab" id="fabWrap">
+      <button id="btnFabToggle" title="Công cụ">⚙️</button>
+      <div class="fab-list" id="fabList">
+        <button id="btnInfo" title="Hiện lại thông tin file">ⓘ</button>
+        <button id="btnWalk">🚶 Đi bộ</button>
+        <button id="btnPickMode">👆 Chọn</button>
+        <button id="btnFilter">🎚️ Lọc</button>
+        <button id="btnMoc">📍 Cắm mốc (<span id="moccount">0</span>)</button>
+        <button id="btnTyLe">📏 Đo tỷ lệ</button>
+        <button id="btnQr">🔳 Mốc QR</button>
+        <button id="btnNotes">📋 Ghi chú (<span id="ncount">0</span>)</button>
+        <button id="btnMark" class="primary">✏️ Đánh dấu</button>
+      </div>
     </div>
     <div class="infobar">
       <span>ℹ️</span>
@@ -1289,6 +1298,7 @@ function openViewer(r){
   $('#backChk').onclick = () => { pending = r; closeViewer(); };
   $('#btnMark').onclick = toggleMarkup;
   $('#btnNotes').onclick = openNotesSheet;
+   $('#btnFabToggle').onclick = () => $('#fabList').classList.toggle('open');
   $('#btnMoc').onclick = () => {
     // Bam lan hai khi dang cho cham = huy, khong bat nguoi dung cham bua
     if (mocMode || doTyLeMode > 0){ mocMode = false; doTyLeMode = 0; capNhatNutMoc(); return; }
