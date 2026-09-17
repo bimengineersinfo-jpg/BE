@@ -2055,17 +2055,36 @@ function stopCompass(){
   compassOn = false; updateCompassBtn();
 }
 
+/* Bộ lọc làm mượt kiểu EMA (exponential moving average) cho góc quay.
+   Không dùng trung bình cộng thường vì góc quay vòng ở 360->0 (ví dụ đi
+   từ 359° sang 2° không được hiểu là nhảy lùi gần 360°). Xử lý bằng cách
+   quy đổi chênh lệch góc về khoảng [-180, 180] trước khi trộn. */
+let _yawMuot = null, _pitchMuot = null;
+const HE_SO_MUOT = 0.15; // 0..1 — càng nhỏ càng mượt nhưng càng trễ
+
+function tronGocMuot(cu, moi, heSo){
+  if (cu == null) return moi;
+  let d = moi - cu;
+  d = ((d + 180) % 360 + 360) % 360 - 180; // đưa chênh lệch về [-180, 180]
+  return cu + d * heSo;
+}
+
 /* Nhận số đo hướng thiết bị -> đổi hướng nhìn. Tách riêng để test được. */
 function onDeviceOrientation(ev){
   if (!compassOn || !walk) return;
-  // iOS cho hướng la bàn thật qua webkitCompassHeading; chuẩn W3C thì alpha
-  // của 'deviceorientationabsolute' là góc so với bắc, tính ngược chiều.
   let heading = null;
   if (typeof ev.webkitCompassHeading === 'number') heading = ev.webkitCompassHeading;
   else if (typeof ev.alpha === 'number') heading = 360 - ev.alpha;
   if (heading == null) return;
-  walk.yaw   = headingToYaw(heading, modelNorth);
-  walk.pitch = tiltToPitch(ev.beta, compassInvert);
+
+  const yawTho   = headingToYaw(heading, modelNorth);
+  const pitchTho = tiltToPitch(ev.beta, compassInvert);
+
+  _yawMuot   = tronGocMuot(_yawMuot, yawTho, HE_SO_MUOT);
+  _pitchMuot = (_pitchMuot == null) ? pitchTho : _pitchMuot + (pitchTho - _pitchMuot) * HE_SO_MUOT;
+
+  walk.yaw   = _yawMuot;
+  walk.pitch = _pitchMuot;
   applyWalk();
 }
 
@@ -2078,13 +2097,16 @@ async function toggleCompass(){
       const res = await D.requestPermission();
       if (res !== 'granted'){ alert('Bạn chưa cho phép dùng cảm biến hướng.'); return; }
     }
+    _yawMuot = null; _pitchMuot = null;
     _compassHandler = onDeviceOrientation;
-    window.addEventListener('deviceorientationabsolute', _compassHandler, true);
-    window.addEventListener('deviceorientation', _compassHandler, true);
+    if ('ondeviceorientationabsolute' in window){
+      window.addEventListener('deviceorientationabsolute', _compassHandler, true);
+    } else {
+      window.addEventListener('deviceorientation', _compassHandler, true);
+    }
     compassOn = true; updateCompassBtn();
   } catch(e){ alert('Không bật được la bàn: ' + e.message); }
 }
-
 /* ---------- Quét QR bằng camera ---------- */
 let _scanStop = null;
 
