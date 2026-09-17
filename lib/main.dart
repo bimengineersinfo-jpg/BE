@@ -203,7 +203,7 @@ class _ManHinhChinhState extends State<ManHinhChinh> {
       // chọn file hệ thống không lọc được theo đuôi và trả về danh sách
       // TRỐNG — người dùng tưởng app hỏng. Đây là lỗi đã gặp ở bản v1.
       // Nội dung file do trang web tự kiểm sau đó, chặt hơn lọc đuôi nhiều.
-      final ket = await FilePicker.pickFiles(type: FileType.any);
+      final ket = await FilePicker.platform.pickFiles(type: FileType.any);
       if (ket == null || ket.files.isEmpty) return;
       final f = ket.files.first;
 
