@@ -1111,8 +1111,145 @@ const home = $('#home'), viewer = $('#viewer'), stage = $('#stage');
 const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 
 let pending = null, recent = [], blobs = new Map(), busy = false;
+  /* =====================================================================
+   DỰ ÁN — nhóm nhiều lần xuất file (.glb) của CÙNG một công trình lại,
+   để cài đặt (tỷ lệ, cao độ, mốc QR, mốc nhìn) sống lâu hơn 1 file.
+   ===================================================================== */
+const duAnData = new Map();     // id -> {id, ten, ngayTao, files:[{ten,soByte,thoiGianThem}]}
+let duAnHienTai = null;         // dự án đang mở, hoặc null (đang ở màn chọn dự án)
+
+const DuAnStore = {
+  ds(){ return [...duAnData.values()].sort((a,b)=>b.ngayTao-a.ngayTao); },
+  tao(ten){
+    const id = 'da_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+    const d = {id, ten: (ten||'').trim() || 'Dự án không tên', ngayTao: Date.now(), files: []};
+    duAnData.set(id, d);
+    luuDsDuAn();
+    return d;
+  },
+  xoa(id){ duAnData.delete(id); caiDatDuAnData.delete(id); luuDsDuAn(); },
+  themFile(id, r){
+    const d = duAnData.get(id); if (!d) return;
+    d.files = d.files.filter(f => f.ten !== r.name);
+    d.files.unshift({ten: r.name, soByte: r.sizeBytes, thoiGianThem: Date.now()});
+    luuDsDuAn();
+  },
+};
+function luuDsDuAn(){
+  try { window.BE3D_gui && window.BE3D_gui('luuDsDuAn', {json: JSON.stringify(DuAnStore.ds())}); } catch(_){}
+}
+window.BE3D_napDsDuAn = function(json){
+  try {
+    const ds = JSON.parse(json);
+    if (!Array.isArray(ds)) return 0;
+    duAnData.clear();
+    ds.forEach(d => { if (d && d.id) duAnData.set(d.id, d); });
+    if (typeof renderDuAn === 'function' && !duAnHienTai) renderDuAn();
+    return ds.length;
+  } catch(_){ return 0; }
+};
+
+const caiDatDuAnData = new Map();   // maDuAn -> {caoDoSan, caoDoMat, mocNhin:[...]}
+const CaiDatDuAnStore = {
+  doc(maDuAn){ return caiDatDuAnData.get(maDuAn) || null; },
+  luu(maDuAn, patch){
+    const cu = caiDatDuAnData.get(maDuAn) || {caoDoSan:null, caoDoMat:EYE_DEFAULT, mocNhin:[]};
+    const moi = {...cu, ...patch};
+    caiDatDuAnData.set(maDuAn, moi);
+    try { window.BE3D_gui && window.BE3D_gui('luuCaiDatDuAn', {maDuAn, json: JSON.stringify(moi)}); } catch(_){}
+    return moi;
+  },
+};
+window.BE3D_napCaiDatDuAn = function(maDuAn, json){
+  try {
+    const d = JSON.parse(json);
+    if (!d || typeof d !== 'object') return 0;
+    const moi = {
+      caoDoSan: (typeof d.caoDoSan === 'number' && isFinite(d.caoDoSan)) ? d.caoDoSan : null,
+      caoDoMat: (typeof d.caoDoMat === 'number' && d.caoDoMat > 0) ? d.caoDoMat : EYE_DEFAULT,
+      mocNhin: Array.isArray(d.mocNhin) ? d.mocNhin : [],
+    };
+    caiDatDuAnData.set(maDuAn, moi);
+    if (duAnHienTai && duAnHienTai.id === maDuAn) { caoDoSan = moi.caoDoSan; caoDoMat = moi.caoDoMat; }
+    return moi.mocNhin.length;
+  } catch(_){ return 0; }
+};
+
+function moChoDuAn(r){
+  return duAnHienTai ? {name: 'DUAN::' + duAnHienTai.id, sizeBytes: 0} : r;
+}
+
+function renderDuAn(){
+  const ds = DuAnStore.ds();
+  const list = ds.length ? `<div class="recent"><h4>Dự án đã tạo</h4>` +
+    ds.map(d => {
+      const f = d.files[0];
+      return `<div class="rowitem" data-da="${esc(d.id)}">
+        <span>🗂️</span>
+        <span class="nm">${esc(d.ten)}</span>
+        <span class="sz">${f ? esc(f.ten) : 'chưa có file'}</span>
+        <span>›</span></div>`;
+    }).join('') + `</div>`
+    : `<p style="text-align:center;color:#6b7480;font-size:13px;padding:24px 12px">
+        Chưa có dự án nào. Tạo dự án để nhóm mọi lần cập nhật file .glb của
+        cùng một công trình — tỷ lệ, cao độ, mốc QR, mốc nhìn sẽ giữ nguyên
+        dù bạn đổi file mới.</p>`;
+
+  home.innerHTML = `
+    <div class="hero">
+      <div class="ic">🗂️</div>
+      <h2>Dự án của bạn</h2>
+      <p>Chọn 1 dự án để mở, hoặc tạo dự án mới.</p>
+    </div>
+    <div class="center">
+      <button class="btn" id="btnTaoDuAn">➕ Tạo dự án mới</button>
+    </div>
+    ${list}
+    <div style="height:20px"></div>`;
+
+  $('#btnTaoDuAn').onclick = moTaoDuAn;
+  document.querySelectorAll('[data-da]').forEach(el =>
+    el.onclick = () => moDuAn(DuAnStore.ds().find(d => d.id === el.dataset.da)));
+}
+
+function moTaoDuAn(){
+  showSheet(`
+    <h4>Tạo dự án mới
+      <button class="btn ghost" style="margin-left:auto;padding:5px 11px;font-size:12px" id="closeSheetDA">Đóng</button>
+    </h4>
+    <label style="font-size:12.5px;color:#444">Tên dự án</label>
+    <input class="inp" id="tenDuAnMoi" type="text" placeholder="ví dụ: Nhà xưởng A - Khu 2">
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn" id="daOk">Tạo</button>
+    </div>`, () => {
+      $('#closeSheetDA').onclick = hideSheet;
+      const inp = $('#tenDuAnMoi'); if (inp) inp.focus();
+      $('#daOk').onclick = () => {
+        const d = DuAnStore.tao($('#tenDuAnMoi').value);
+        hideSheet();
+        moDuAn(d);
+      };
+    });
+}
+
+function moDuAn(d){
+  if (!d) return;
+  duAnHienTai = d;
+  caoDoSan = null; caoDoMat = EYE_DEFAULT;
+  const cd = CaiDatDuAnStore.doc(d.id);
+  if (cd){ caoDoSan = cd.caoDoSan; caoDoMat = cd.caoDoMat; }
+  try { window.BE3D_gui && window.BE3D_gui('moDuAn', {maDuAn: d.id}); } catch(_){}
+  render();
+}
+
+function dongDuAn(){
+  duAnHienTai = null;
+  caoDoSan = null; caoDoMat = EYE_DEFAULT;
+  renderDuAn();
+}
 
 function render(){
+  function render(){
   const tips = `<div class="tips"><b>Để chạy offline suôn sẻ</b>
     Khi xuất .glb từ Revit, hãy TẮT mọi tuỳ chọn nén (Draco, KTX2, Meshopt) — các kiểu nén này
     cần tải bộ giải mã từ Internet.<br><br>
@@ -1128,6 +1265,10 @@ function render(){
       <span>›</span></div>`).join('') + `</div>` : '';
 
   home.innerHTML = `
+    ${duAnHienTai ? `<div style="display:flex;align-items:center;gap:8px;padding:12px 14px 0">
+      <button class="btn ghost" id="btnDoiDuAn" style="padding:5px 11px;font-size:12px">‹ Đổi dự án</button>
+      <b style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(duAnHienTai.ten)}</b>
+    </div>` : ''}
     <div class="hero">
       <div class="ic">🧊</div>
       <h2>Xem mô hình 3D offline</h2>
@@ -1151,6 +1292,7 @@ function render(){
   document.querySelectorAll('.rowitem').forEach(el =>
     el.onclick = () => { pending = recent[+el.dataset.r]; render(); });
   const ob = $('#openBtn'); if (ob) ob.onclick = () => openViewer(pending);
+  const bdd = $('#btnDoiDuAn'); if (bdd) bdd.onclick = dongDuAn;
 }
 
 function reportCard(r){
@@ -1234,12 +1376,13 @@ function openViewer(r){
   MocMat.xoaHet(); canChinh = null; dangDungLai = null; tyLeDaDo = null;
   mocMode = false; doTyLeMode = 0;
   hoSoDaNap = null;
-  const hs = HoSoStore.doc(r);
+  const hs = HoSoStore.doc(moChoDuAn(r));
   if (hs) { const d = HoSoMoc.doc(hs, r); if (d && !d.lechFile) { hoSoDaNap = d;
     if (d.tyLe) tyLeDaDo = {s:d.tyLe, donVi:(doanDonViTuTyLe(d.tyLe)||{}).ten}; } }
   $('#title').textContent = r.name;
   $('#btnClose').style.display = 'inline-block';
-  $('#appbar').style.display = 'none';
+  $('#appbar').style.display = 'none';   // don het vao bang cong cu cho do choan cho man hinh ngang
+  if (duAnHienTai) DuAnStore.themFile(duAnHienTai.id, r);
   home.style.display = 'none'; viewer.style.display = 'flex';
   const url = blobs.get(r.name);
   stage.innerHTML = `
@@ -1262,6 +1405,7 @@ function openViewer(r){
         <button id="btnNotes">📋 Ghi chú (<span id="ncount">0</span>)</button>
         <button id="btnMark" class="primary">✏️ Đánh dấu</button>
         <button id="btnCaoDo">🧍 Cao độ tầm nhìn</button>
+        <button id="btnMocNhin">📌 Mốc nhìn</button>
         <button id="btnFabPick">📁 Mở file khác</button>
         <button id="btnFabClose">✕ Đóng mô hình</button>
       </div>
@@ -1312,6 +1456,7 @@ function openViewer(r){
   $('#btnFabPick').onclick = () => $('#file').click();
   $('#btnFabClose').onclick = closeViewer;
   $('#btnCaoDo').onclick = moCaiDatCaoDo;
+  $('#btnMocNhin').onclick = moMocNhin;
   $('#btnMoc').onclick = () => {
     // Bam lan hai khi dang cho cham = huy, khong bat nguoi dung cham bua
     if (mocMode || doTyLeMode > 0){ mocMode = false; doTyLeMode = 0; capNhatNutMoc(); return; }
@@ -2403,7 +2548,82 @@ function moCaiDatCaoDo(){
       };
     });
 }
+/* --- Mốc nhìn: lưu & khôi phục đúng góc camera, cho cả 2 chế độ -------- */
+function layMocNhinHienTai(ten){
+  const mv = $('#mv'); if (!mv) return null;
+  if (walkOn && walk){
+    return {ten, kieu:'di_bo', x:walk.x, y:walk.y, z:walk.z, yaw:walk.yaw, pitch:walk.pitch};
+  }
+  try {
+    return {ten, kieu:'quan_sat', target: String(mv.getCameraTarget()), orbit: String(mv.getCameraOrbit())};
+  } catch(_){ return null; }
+}
+
+function veMocNhin(m){
+  if (!m) return;
+  const mv = $('#mv'); if (!mv) return;
+  if (m.kieu === 'di_bo'){
+    if (!walkOn) toggleWalk();
+    walk = {x:m.x, y:m.y, z:m.z, yaw:m.yaw, pitch:m.pitch, d:1, step:(walk ? walk.step : 1)};
+    applyWalk();
+  } else {
+    if (walkOn) toggleWalk();
+    try { mv.cameraTarget = m.target; mv.cameraOrbit = m.orbit; } catch(_){}
+  }
+}
+
+function moMocNhin(){
+  if (!duAnHienTai){ alert('Cần mở mô hình trong 1 dự án mới lưu được mốc nhìn.\nĐổi dự án ở bảng ⚙, hoặc tạo dự án mới ở màn hình đầu.'); return; }
+  const cd = CaiDatDuAnStore.doc(duAnHienTai.id) || {mocNhin: []};
+  const ds = cd.mocNhin || [];
+  const list = ds.length ? ds.map((m, i) => `
+    <div class="rowitem" data-mn="${i}" style="cursor:pointer">
+      <span>${m.kieu === 'di_bo' ? '🚶' : '🧊'}</span>
+      <span class="nm">${esc(m.ten)}</span>
+      <span style="flex:1"></span>
+      <button class="btn ghost" data-xoa="${i}" style="padding:3px 8px;font-size:11px">Xoá</button>
+    </div>`).join('') : `<p style="font-size:13px;color:#6b7480;padding:6px 0">Chưa có mốc nhìn nào cho dự án này.</p>`;
+
+  showSheet(`
+    <h4>Mốc nhìn — ${esc(duAnHienTai.ten)}
+      <button class="btn ghost" style="margin-left:auto;padding:5px 11px;font-size:12px" id="closeSheetMN">Đóng</button>
+    </h4>
+    <p style="font-size:12.5px;color:#6b7480;margin:0 0 10px">
+      Lưu đúng góc camera đang xem (cả hướng đi bộ lẫn xoay/zoom thường).
+      Chọn 1 mốc trong danh sách để bay/đi thẳng tới đó.</p>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <input class="inp" id="tenMocNhinMoi" type="text" placeholder="Tên mốc, ví dụ: Cửa chính">
+      <button class="btn" id="mnLuu" style="white-space:nowrap">📍 Lưu vị trí hiện tại</button>
+    </div>
+    <div id="mnList">${list}</div>`, () => {
+      $('#closeSheetMN').onclick = hideSheet;
+      $('#mnLuu').onclick = () => {
+        const ten = ($('#tenMocNhinMoi').value || '').trim() || ('Mốc ' + (ds.length + 1));
+        const moc = layMocNhinHienTai(ten);
+        if (!moc){ alert('Chưa đọc được vị trí camera hiện tại, thử lại sau khi mô hình hiện xong.'); return; }
+        const cdMoi = CaiDatDuAnStore.doc(duAnHienTai.id) || {mocNhin: []};
+        cdMoi.mocNhin = [...(cdMoi.mocNhin || []), moc];
+        CaiDatDuAnStore.luu(duAnHienTai.id, {mocNhin: cdMoi.mocNhin});
+        hideSheet(); moMocNhin();
+      };
+      document.querySelectorAll('[data-mn]').forEach(el => el.onclick = (ev) => {
+        if (ev.target.closest('[data-xoa]')) return;
+        veMocNhin(ds[+el.dataset.mn]);
+        hideSheet();
+      });
+      document.querySelectorAll('[data-xoa]').forEach(el => el.onclick = (ev) => {
+        ev.stopPropagation();
+        const i = +el.dataset.xoa;
+        const cdMoi = CaiDatDuAnStore.doc(duAnHienTai.id) || {mocNhin: []};
+        cdMoi.mocNhin = (cdMoi.mocNhin || []).filter((_, k) => k !== i);
+        CaiDatDuAnStore.luu(duAnHienTai.id, {mocNhin: cdMoi.mocNhin});
+        hideSheet(); moMocNhin();
+      });
+    });
+}
+
 /* --- B0. Kho hồ sơ mốc trong bộ nhớ ------------------------------------
+
    Cùng khuôn mẫu với NoteStore để lớp cầu nối của app Flutter bọc được y hệt
    cách nó bọc ghi chú — ít chỗ mới là ít chỗ sai. App thật ghi xuống đĩa. */
 const hoSoData = new Map();
@@ -2574,8 +2794,8 @@ function moBangMoc(vuaThem){
            dang tin hon so do bang mot khoang cach duy nhat. */
         const f = MocMat.khop();
         const s = (f.ok && f.s > 0) ? f.s : (tyLeDaDo ? tyLeDaDo.s : null);
-        HoSoStore.luu(current, s, MocMat.ds);
-        hoSoDaNap = HoSoMoc.doc(HoSoStore.doc(current), current);
+        HoSoStore.luu(moChoDuAn(current), s, MocMat.ds);
+        hoSoDaNap = HoSoMoc.doc(HoSoStore.doc(moChoDuAn(current)), moChoDuAn(current));
         const el = $('#mocLuuKq');
         if (el) el.innerHTML = `<div class="msg arn" style="margin-top:10px">
           <div class="h">Đã lưu ${MocMat.so()} mốc${s ? ' và tỷ lệ ' + s.toPrecision(5) + ' m/đơn vị' : ''}</div>
@@ -2646,7 +2866,7 @@ document.querySelectorAll('.samples button').forEach(b => b.onclick = () => {
   handleFile(new File([gen()], nm));
 });
 
-render();
+renderDuAn();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <script src="qrcode.min.js"></script>
