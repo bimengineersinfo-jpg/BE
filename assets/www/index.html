@@ -1404,6 +1404,7 @@ function openViewer(r){
         <button id="btnNotes">📋 Ghi chú (<span id="ncount">0</span>)</button>
         <button id="btnMark" class="primary">✏️ Đánh dấu</button>
         <button id="btnCaoDo">🧍 Cao độ tầm nhìn</button>
+        <button id="btnVaoGiua">🎯 Vào giữa mô hình</button>
         <button id="btnMocNhin">📌 Mốc nhìn</button>
         <button id="btnFabPick">📁 Mở file khác</button>
         <button id="btnFabClose">✕ Đóng mô hình</button>
@@ -1441,7 +1442,11 @@ function openViewer(r){
       setTimeout(() => { const bar = stage.querySelector('.infobar');
                          if (bar) bar.classList.add('hidden'); }, 4000);
       showArStatus(mv);
-      apDungTyLe(mv);
+      apDungTyLe(mv);   // co san ty le tu lan mo truoc thi ap lai ngay
+      try {
+        const t = String(mv.getCameraTarget()).match(/-?[\d.]+/g).map(Number);
+        tamMoHinhMacDinh = {x:t[0], y:t[1], z:t[2]};
+      } catch(_){}
     });
     mv.addEventListener('error', () => { const h=$('#hint'); if(h) h.style.display='block'; });
     mv.addEventListener('click', onModelClick);
@@ -1455,6 +1460,7 @@ function openViewer(r){
   $('#btnFabPick').onclick = () => $('#file').click();
   $('#btnFabClose').onclick = closeViewer;
   $('#btnCaoDo').onclick = moCaiDatCaoDo;
+  $('#btnVaoGiua').onclick = vaoGiuaMoHinhDiBo;
   $('#btnMocNhin').onclick = moMocNhin;
   $('#btnMoc').onclick = () => {
     // Bam lan hai khi dang cho cham = huy, khong bat nguoi dung cham bua
@@ -2034,6 +2040,7 @@ const DEG = Math.PI / 180;
 const EYE_DEFAULT = 1.6;          // chiều cao mắt mặc định (m)
 let caoDoSan = null;   // cao độ sàn do người dùng cài đặt (m) — null = chưa cài, dùng cách cũ
 let caoDoMat = EYE_DEFAULT; // cao độ mắt so với sàn (m)
+let tamMoHinhMacDinh = null; // {x,y,z} tâm mô hình, chụp lúc vừa nạp xong — dùng cho nút vào nhanh
 /* ---- LA BÀN: quy đổi hướng thiết bị -> hướng nhìn trong mô hình ----
    deviceHeading: 0..360, 0 = thiết bị đang hướng về BẮC THẬT.
    north: yaw trong mô hình ứng với hướng bắc thật (lấy từ mốc QR v2).
@@ -2127,7 +2134,10 @@ function toggleWalk(){
   // (sửa theo ảnh chụp) Bảng nút đi bộ nằm cùng góc với dãy nút chính nên đè
   // lên nhau. Vào chế độ đi bộ thì giấu hết nút không liên quan, chỉ chừa nút
   // thoát — giống Navisworks khi vào Walk là màn hình gọn lại.
-  stage.querySelectorAll('.fab button').forEach(b => { b.style.display = walkOn ? 'none' : ''; });
+  stage.querySelectorAll('.fab button').forEach(b => {
+    if (b.id === 'btnFabToggle') return;
+    b.style.display = walkOn ? 'none' : '';
+  });
   const bar = stage.querySelector('.infobar');
   if (bar) bar.classList.toggle('hidden', walkOn);
   if (!walkOn){
@@ -2547,6 +2557,18 @@ function moCaiDatCaoDo(){
       };
     });
 }
+function vaoGiuaMoHinhDiBo(){
+  if (!tamMoHinhMacDinh){
+    alert('Chưa xác định được tâm mô hình — đợi mô hình hiện xong hẳn rồi thử lại.');
+    return;
+  }
+  if (!walkOn) toggleWalk();
+  const yEye = (caoDoSan != null ? caoDoSan : tamMoHinhMacDinh.y) + caoDoMat;
+  walk = {x:tamMoHinhMacDinh.x, y:yEye, z:tamMoHinhMacDinh.z,
+          yaw:(walk ? walk.yaw : 0), pitch:0, d:1, step:(walk ? walk.step : 1)};
+  applyWalk();
+}
+
 /* --- Mốc nhìn: lưu & khôi phục đúng góc camera, cho cả 2 chế độ -------- */
 function layMocNhinHienTai(ten){
   const mv = $('#mv'); if (!mv) return null;
