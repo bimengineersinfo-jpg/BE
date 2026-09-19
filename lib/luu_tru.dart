@@ -77,6 +77,71 @@ class LuuTru {
     }
   }
 
+    Directory? _thuMucDuAn;
+  Future<Directory> _duAnDir() async {
+    if (_thuMucDuAn != null) return _thuMucDuAn!;
+    final goc = await getApplicationDocumentsDirectory();
+    final d = Directory('${goc.path}/du_an');
+    if (!await d.exists()) await d.create(recursive: true);
+    return _thuMucDuAn = d;
+  }
+
+  static String _sachTen(String s) => s.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+
+  Future<void> luuDsDuAn(String json) async {
+    final d = await _duAnDir();
+    final f = File('${d.path}/danh_sach.json');
+    await f.writeAsString(json, flush: true);
+  }
+
+  Future<String?> docDsDuAn() async {
+    final d = await _duAnDir();
+    final f = File('${d.path}/danh_sach.json');
+    if (!await f.exists()) return null;
+    try {
+      final s = await f.readAsString();
+      jsonDecode(s);
+      return s;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> luuCaiDatDuAn(String maDuAn, String json) async {
+    final d = await _duAnDir();
+    final f = File('${d.path}/cai_dat_${_sachTen(maDuAn)}.json');
+    await f.writeAsString(json, flush: true);
+  }
+
+  Future<String?> docCaiDatDuAn(String maDuAn) async {
+    final d = await _duAnDir();
+    final f = File('${d.path}/cai_dat_${_sachTen(maDuAn)}.json');
+    if (!await f.exists()) return null;
+    try {
+      final s = await f.readAsString();
+      jsonDecode(s);
+      return s;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> luuDuongDanDuAn(String maDuAn, String duongDan) async {
+    final d = await _duAnDir();
+    final f = File('${d.path}/duong_dan_${_sachTen(maDuAn)}.txt');
+    await f.writeAsString(duongDan, flush: true);
+  }
+
+  Future<String?> docDuongDanDuAn(String maDuAn) async {
+    final d = await _duAnDir();
+    final f = File('${d.path}/duong_dan_${_sachTen(maDuAn)}.txt');
+    if (!await f.exists()) return null;
+    final duong = (await f.readAsString()).trim();
+    if (duong.isEmpty) return null;
+    if (!await File(duong).exists()) return null;
+    return duong;
+  }
+
   /// Hồ sơ mốc — lưu cạnh ghi chú, cùng cách đặt khoá.
   ///
   /// Đây là thứ làm cho lần mở app thứ hai không phải cắm mốc lại từ đầu.
