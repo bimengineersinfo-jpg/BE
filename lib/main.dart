@@ -159,7 +159,7 @@ class _ManHinhChinhState extends State<ManHinhChinh> {
     }
     switch (m['cmd'] as String?) {
       case 'chonFile':
-        await _chonFile();
+        await _chonFile((m['maDuAn'] as String?));
         break;
       case 'daMoViewer':
         await _napGhiChuDaLuu(
@@ -173,6 +173,18 @@ class _ManHinhChinhState extends State<ManHinhChinh> {
           (m['co'] as num?)?.toInt() ?? 0,
           (m['json'] ?? '{}') as String,
         );
+        break;
+      case 'luuDsDuAn':
+        await _luuTru.luuDsDuAn((m['json'] ?? '[]') as String);
+        break;
+      case 'luuCaiDatDuAn':
+        await _luuTru.luuCaiDatDuAn(
+          (m['maDuAn'] ?? '') as String,
+          (m['json'] ?? '{}') as String,
+        );
+        break;
+      case 'moDuAn':
+        await _moDuAn((m['maDuAn'] ?? '') as String);
         break;
       case 'luuGhiChu':
         await _luuTru.luuGhiChu(
@@ -191,24 +203,24 @@ class _ManHinhChinhState extends State<ManHinhChinh> {
         _bao((m['msg'] ?? 'Lỗi không rõ') as String);
         break;
       case 'trangSanSang':
+        await _napDsDuAn();
         break;
     }
   }
 
-  Future<void> _chonFile() async {
+    Future<void> _chonFile(String? maDuAn) async {
     if (_dangMoFile) return;
     _dangMoFile = true;
     try {
-      // FileType.any chứ KHÔNG lọc theo đuôi: trên nhiều máy Android trình
-      // chọn file hệ thống không lọc được theo đuôi và trả về danh sách
-      // TRỐNG — người dùng tưởng app hỏng. Đây là lỗi đã gặp ở bản v1.
-      // Nội dung file do trang web tự kiểm sau đó, chặt hơn lọc đuôi nhiều.
       final ket = await FilePicker.platform.pickFiles(type: FileType.any);
       if (ket == null || ket.files.isEmpty) return;
       final f = ket.files.first;
 
       if (f.path != null && f.path!.isNotEmpty) {
         _mayChu.datModelTheoDuongDan(f.path!);
+        if (maDuAn != null && maDuAn.isNotEmpty) {
+          await _luuTru.luuDuongDanDuAn(maDuAn, f.path!);
+        }
       } else if (f.bytes != null) {
         _mayChu.datModelTheoByte(f.bytes!);
       } else {
@@ -226,6 +238,32 @@ class _ManHinhChinhState extends State<ManHinhChinh> {
       _bao('Không mở được trình chọn file: $e');
     } finally {
       _dangMoFile = false;
+    }
+  }
+
+  Future<void> _napDsDuAn() async {
+    if (_dieuKhien == null) return;
+    final json = await _luuTru.docDsDuAn();
+    if (json != null) {
+      await _dieuKhien!.runJavaScript('BE3D_napDsDuAn(${_chuoiJs(json)})');
+    }
+  }
+
+  Future<void> _moDuAn(String maDuAn) async {
+    if (maDuAn.isEmpty || _dieuKhien == null) return;
+    final cd = await _luuTru.docCaiDatDuAn(maDuAn);
+    if (cd != null) {
+      await _dieuKhien!.runJavaScript(
+        'BE3D_napCaiDatDuAn(${_chuoiJs(maDuAn)}, ${_chuoiJs(cd)})',
+      );
+    }
+    final duong = await _luuTru.docDuongDanDuAn(maDuAn);
+    if (duong != null) {
+      _mayChu.datModelTheoDuongDan(duong);
+      final ten = duong.split(Platform.pathSeparator).last;
+      await _dieuKhien!.runJavaScript(
+        'BE3D_moFile(${_chuoiJs('${_mayChu.diaChiGoc}model.glb')}, ${_chuoiJs(ten)})',
+      );
     }
   }
 
