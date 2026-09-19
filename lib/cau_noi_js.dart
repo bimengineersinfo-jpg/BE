@@ -49,7 +49,10 @@ const String kMaCauNoiJs = r'''
     var el = document.getElementById('file');
     if (el && !el.__be3d) {
       el.__be3d = true;
-      el.click = function () { guiDart('chonFile'); };
+      el.click = function () {
+        var maDuAn = (typeof duAnHienTai !== 'undefined' && duAnHienTai) ? duAnHienTai.id : null;
+        guiDart('chonFile', {maDuAn: maDuAn});
+      };
     }
   }
 
