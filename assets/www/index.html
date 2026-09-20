@@ -2064,7 +2064,6 @@ function tinhHuongLaBanChuan(alpha, beta, gamma){
 }
 
 function headingToYaw(deviceHeading, north){
-function headingToYaw(deviceHeading, north){
   const n = Number(north) || 0;
   const h = Number(deviceHeading) || 0;
   return ((n + h) % 360 + 360) % 360;
