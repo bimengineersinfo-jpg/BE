@@ -2050,6 +2050,20 @@ let tamMoHinhMacDinh = null; // {x,y,z} tâm mô hình, chụp lúc vừa nạp 
    north: yaw trong mô hình ứng với hướng bắc thật (lấy từ mốc QR v2).
    Hai hàm này là toán thuần nên test được bằng số; phần bắt sự kiện cảm biến
    chỉ là lớp mỏng bọc ngoài, cần thử trên máy thật. */
+function tinhHuongLaBanChuan(alpha, beta, gamma){
+  const aR = alpha * DEG, bR = beta * DEG, gR = gamma * DEG;
+  const cA = Math.cos(aR), sA = Math.sin(aR);
+  const cB = Math.cos(bR), sB = Math.sin(bR);
+  const cG = Math.cos(gR), sG = Math.sin(gR);
+  const rA = -cA*sG - sA*sB*cG;
+  const rB = -sA*sG + cA*sB*cG;
+  let h = Math.atan(rA / rB);
+  if (rB < 0) h += Math.PI;
+  else if (rA < 0) h += 2*Math.PI;
+  return h * (180/Math.PI);
+}
+
+function headingToYaw(deviceHeading, north){
 function headingToYaw(deviceHeading, north){
   const n = Number(north) || 0;
   const h = Number(deviceHeading) || 0;
@@ -2283,9 +2297,12 @@ function tronGocMuot(cu, moi, heSo){
 /* Nhận số đo hướng thiết bị -> đổi hướng nhìn. Tách riêng để test được. */
 function onDeviceOrientation(ev){
   if (!compassOn || !walk) return;
-  let heading = null;
+    let heading = null;
   if (typeof ev.webkitCompassHeading === 'number') heading = ev.webkitCompassHeading;
-  else if (typeof ev.alpha === 'number') heading = 360 - ev.alpha;
+  else if (typeof ev.alpha === 'number' && typeof ev.beta === 'number' && typeof ev.gamma === 'number') {
+    heading = tinhHuongLaBanChuan(ev.alpha, ev.beta, ev.gamma);
+    if (!isFinite(heading)) heading = 360 - ev.alpha;
+  } else if (typeof ev.alpha === 'number') heading = 360 - ev.alpha;
   if (heading == null) return;
 
   const yawTho   = headingToYaw(heading, modelNorth);
