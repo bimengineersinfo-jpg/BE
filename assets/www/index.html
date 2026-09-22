@@ -1390,7 +1390,8 @@ function openViewer(r){
   const url = blobs.get(r.name);
   stage.innerHTML = `
     <model-viewer id="mv" src="${url}" alt="Mô hình BIM" camera-controls touch-action="pan-y"
-                  ar ar-modes="scene-viewer" style="width:100%;height:100%"></model-viewer>
+              shadow-intensity="0"
+              ar ar-modes="scene-viewer" style="width:100%;height:100%"></model-viewer>
     <div class="hintbox" id="hint" style="display:none"><span style="float:right;cursor:pointer;opacity:.7;padding:0 2px" onclick="this.parentNode.remove()">✕</span>Nếu vẫn chưa thấy mô hình: bấm nút kiểm tra
       ở góc dưới phải để xem kết quả phân tích file. Nguyên nhân hay gặp nhất là file .glb được xuất
       kèm nén Draco — nén đó cần Internet để giải mã.</div>
@@ -2912,6 +2913,10 @@ document.querySelectorAll('.samples button').forEach(b => b.onclick = () => {
 });
 
 renderDuAn();
+</script>
+<script>
+  self.ModelViewerElement = self.ModelViewerElement || {};
+  self.ModelViewerElement.dracoDecoderLocation = './';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <script src="qrcode.min.js"></script>
