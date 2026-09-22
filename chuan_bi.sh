@@ -109,6 +109,21 @@ if ! tai "https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.m
   echo "/* chua tai duoc */" > "$WWW/qrcode.min.js"
 fi
 
+if ! tai "https://www.gstatic.com/draco/versioned/decoders/1.5.7/draco_decoder.js" \
+         "$WWW/draco_decoder.js" 50000 "draco_decoder.js"; then
+  canh "Thieu draco_decoder.js: chi anh huong neu file .glb co nen Draco."
+  echo "/* chua tai duoc */" > "$WWW/draco_decoder.js"
+fi
+if ! tai "https://www.gstatic.com/draco/versioned/decoders/1.5.7/draco_wasm_wrapper.js" \
+         "$WWW/draco_wasm_wrapper.js" 5000 "draco_wasm_wrapper.js"; then
+  canh "Thieu draco_wasm_wrapper.js: chi anh huong neu file .glb co nen Draco."
+  echo "/* chua tai duoc */" > "$WWW/draco_wasm_wrapper.js"
+fi
+if ! tai "https://www.gstatic.com/draco/versioned/decoders/1.5.7/draco_decoder.wasm" \
+         "$WWW/draco_decoder.wasm" 50000 "draco_decoder.wasm"; then
+  canh "Thieu draco_decoder.wasm: chi anh huong neu file .glb co nen Draco."
+fi
+
 cd "$DUONG_APP"
 buoc 4 "flutter pub get"
 flutter pub get
